@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 // ✅ AJOUTE CETTE LIGNE ICI :
-import { apiFetch } from "@/config/api";
+import { apiFetch } from "../config/api";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -61,10 +61,21 @@ export default function RegisterScreen() {
       });
 
       if (result.status === "success") {
-        await AsyncStorage.multiSet([
+        const sessionData: [string, string][] = [
           ["user_phone", phone.trim()],
           ["user_name", name.trim()],
-        ]);
+        ];
+        if (result.access_token) {
+          sessionData.push(["access_token", result.access_token]);
+        }
+        if (result.is_affiliate !== undefined) {
+          sessionData.push(["is_affiliate", String(result.is_affiliate)]);
+        }
+        if (result.affiliate_code) {
+          sessionData.push(["affiliate_code", result.affiliate_code]);
+        }
+
+        await AsyncStorage.multiSet(sessionData);
 
         Alert.alert("Bienvenue ! 🎉", "Ton compte Kemtchop est prêt.", [
           { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },

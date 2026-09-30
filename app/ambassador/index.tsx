@@ -12,10 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { api } from "../../config/api";
 
 // Interface pour typer tes commandes venant de FastAPI
 interface Order {
-  id: number;
+  id: string; // Changé en string pour supporter les UUID
   product_name: string;
   customer_name: string;
   status: string;
@@ -29,8 +30,6 @@ export default function AmbassadorDashboard() {
   const [loading, setLoading] = useState(true);
   const [totalCommission, setTotalCommission] = useState(0);
 
-  const SERVER_IP = "127.0.0.1"; // N'oublie pas de mettre ton IP locale pour les tests sur téléphone
-
   useEffect(() => {
     fetchSales();
   }, []);
@@ -40,10 +39,7 @@ export default function AmbassadorDashboard() {
       const myCode = await AsyncStorage.getItem("active_affiliate_code");
       if (!myCode) return;
 
-      const response = await fetch(
-        `http://${SERVER_IP}:8000/orders/ambassador/${myCode}`,
-      );
-      const data = await response.json();
+      const data = await api.get(`/payments/ambassador/${myCode}`);
 
       setSales(data);
 

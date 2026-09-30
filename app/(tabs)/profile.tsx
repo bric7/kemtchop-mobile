@@ -13,10 +13,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import AffiliateMenu from "../component/AffiliateMenu";
-import AffiliateWallet from "../component/AffiliateWallet";
-import ProfileHeader from "../component/ProfileHeader";
-import SettingsMenu from "../component/SettingsMenu";
+import AffiliateMenu from "@/component/AffiliateMenu";
+import AffiliateWallet from "@/component/AffiliateWallet";
+import ProfileHeader from "@/component/ProfileHeader";
+import SettingsMenu from "@/component/SettingsMenu";
+import { api } from "../../config/api";
 
 export default function ProfileScreen() {
   const [userName, setUserName] = useState("Client Kemtchop");
@@ -28,8 +29,6 @@ export default function ProfileScreen() {
 
   // État pour l'input manuel
   const [manualRef, setManualRef] = useState("");
-
-  const SERVER_IP = "127.0.0.1";
 
   useEffect(() => {
     loadData();
@@ -52,13 +51,9 @@ export default function ProfileScreen() {
 
   const checkAffiliateStatus = async (phone: string) => {
     try {
-      const res = await fetch(
-        `http://${SERVER_IP}:8000/users/status?phone=${phone}`,
-        { method: "GET" },
-      );
-      const data = await res.json();
+      const data = await api.get(`/users/status?phone=${phone}`, true);
 
-      if (data.is_affiliate) {
+      if (data && data.is_affiliate) {
         setIsAffiliate(true);
         setAffiliateCode(data.affiliate_code);
         setPendingCommissions(data.pending_commissions || 0);

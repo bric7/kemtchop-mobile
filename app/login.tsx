@@ -19,7 +19,7 @@ import {
 } from "react-native";
 
 // ✅ IMPORT API CONFIG (remplace les fetch locaux)
-import { apiFetch } from "@/config/api";
+import { apiFetch } from "../config/api";
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState("");
@@ -48,6 +48,7 @@ export default function LoginScreen() {
       });
 
       await AsyncStorage.multiSet([
+        ["access_token", data.access_token],
         ["user_phone", phone.trim()],
         ["user_name", data.user_name],
         ["is_affiliate", String(data.is_affiliate)],

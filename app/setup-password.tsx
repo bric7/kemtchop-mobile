@@ -18,6 +18,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { apiFetch } from "../config/api";
 
 export default function SetupPasswordScreen() {
   const router = useRouter();
@@ -48,29 +49,17 @@ export default function SetupPasswordScreen() {
     setError("");
 
     try {
-      // Note pour Brice : Assure-toi que ton PC et ton téléphone sont sur le même Wi-Fi
-      // et que 192.168.1.10 est bien l'IP actuelle de ton PC.
-      const response = await fetch(
-        "http://127.0.0.1:8000/users/complete-setup",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: token,
-            new_password: password,
-          }),
-        },
-      );
+      await apiFetch("/users/complete-setup", {
+        method: "POST",
+        body: JSON.stringify({
+          token: token,
+          new_password: password,
+        }),
+      });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-      } else {
-        setError(data.detail || "Ce lien est invalide ou a expiré.");
-      }
-    } catch (err) {
-      setError("Impossible de joindre le serveur Kemtchop. Vérifie ton Wi-Fi.");
+      setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || "Ce lien est invalide ou a expiré.");
     } finally {
       setLoading(false);
     }

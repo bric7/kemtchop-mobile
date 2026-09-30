@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { api } from "../../config/api";
 
 export default function OrdersScreen() {
   const [orders, setOrders] = useState([]);
@@ -15,24 +16,22 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [userPhone, setUserPhone] = useState<string | null>(null);
 
-  const SERVER_IP = "127.0.0.1";
-
   // --- FONCTION DE RÉCUPÉRATION DES DONNÉES ---
   const fetchOrders = async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
       const storedPhone = await AsyncStorage.getItem("user_phone");
 
-      // AJOUTE CETTE LIGNE : Elle débloque l'affichage
-      if (storedPhone) setUserPhone(storedPhone);
-
       if (storedPhone) {
-        const response = await fetch(
-          `http://${SERVER_IP}:8000/orders/my-orders/${storedPhone}`,
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const sortedData = data.sort((a: any, b: any) => b.id - a.id);
+        setUserPhone(storedPhone);
+        // Utilisation du service API centralisé avec authentification
+        const data = await api.get('/orders/my-orders', true);
+
+        if (data && Array.isArray(data)) {
+          // Tri par date de création (nécessaire car les UUID ne sont pas séquentiels)
+          const sortedData = data.sort((a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
           setOrders(sortedData);
         }
       }
@@ -40,7 +39,7 @@ export default function OrdersScreen() {
       console.error("Erreur fetch orders:", error);
     } finally {
       setLoading(false);
-      setRefreshing(false); // N'oublie pas de stopper le rafraîchissement ici aussi
+      setRefreshing(false);
     }
   };
   // --- EFFET POUR LE CHARGEMENT INITIAL + MISE À JOUR AUTO ---
@@ -66,18 +65,21 @@ export default function OrdersScreen() {
 
   // --- LOGIQUE DE LA TIMELINE ---
   const getStatusStep = (status: string) => {
-    switch (status) {
-      case "en_attente":
-        return 1;
-      case "cuisine":
-        return 2;
-      case "livraison":
-        return 3;
-      case "termine":
-        return 4;
-      default:
-        return 1;
-    }
+    const s = (status || "").toUpperCase().trim();
+
+    // Étape 1 : En attente / Acompte
+    if (["PENDING", "EN_ATTENTE", "PAID", "ACOMPTE"].includes(s)) return 1;
+
+    // Étape 2 : Cuisine / Préparation
+    if (["PREPARING", "CUISINE", "COOKING", "READY_TO_SHIP", "IN_PREPARATION"].includes(s)) return 2;
+
+    // Étape 3 : Livraison / En route
+    if (["SHIPPING", "LIVRAISON", "DELIVERING", "ON_THE_WAY"].includes(s)) return 3;
+
+    // Étape 4 : Terminé / Livré
+    if (["DELIVERED", "TERMINE", "TERMINÉ", "COMPLETED", "FINISHED", "CLOSED"].includes(s)) return 4;
+
+    return 1;
   };
 
   const renderOrderItem = ({ item }: any) => {
@@ -87,7 +89,7 @@ export default function OrdersScreen() {
       <View style={styles.orderCard}>
         <View style={styles.orderHeader}>
           <Text style={styles.productName}>{item.product_name}</Text>
-          <Text style={styles.orderId}>#00{item.id}</Text>
+          <Text style={styles.orderId}>#{item.id.substring(0, 8)}</Text>
         </View>
 
         {/* TIMELINE DE SUIVI DYNAMIQUE */}
@@ -131,6 +133,19 @@ export default function OrdersScreen() {
                 ]}
               >
                 Livraison
+              </Text>
+            </View>
+            {/* Étape 4 : Terminé */}
+            <View
+              style={[styles.stepDot, currentStep >= 4 && styles.activeDot]}
+            >
+              <Text
+                style={[
+                  styles.stepLabel,
+                  currentStep >= 4 && styles.activeLabel,
+                ]}
+              >
+                Terminé
               </Text>
             </View>
           </View>
@@ -186,7 +201,7 @@ export default function OrdersScreen() {
       <Text style={styles.title}>Suivi de mes plats</Text>
       <FlatList
         data={orders}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id}
         renderItem={renderOrderItem}
         refreshControl={
           <RefreshControl

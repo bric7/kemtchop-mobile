@@ -1,350 +1,450 @@
+// app/(tabs)/index.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect, useLocalSearchParams } from "expo-router"; // AJOUT de useLocalSearchParams
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { SearchBar } from "../../components/SearchBar";
-import { useHomeData } from "../../hooks/useHomeData";
-import OrderModal from "../components/OrderModal";
-import { ProductCard } from "../components/ProductCard";
-import HeroCard from "../component/HeroCard";
 
-const CATEGORIES = [
-  "Tout",
-  "Grillades",
-  "Plats Locaux",
-  "Boissons",
-  "Accompagnements",
-  "rôti",
-];
+import HomeHeader from "@/components/home/HomeHeader";
+import ReelsSection from "@/components/home/ReelsSection";
+import HeroOfferCard from "@/components/home/HeroDailyOffer";
+import ProductionFilterSection, { OfferDimension } from "@/components/home/ProductionFilterSection";
+import OfferGrid from "@/components/home/DailyOfferGrid";
+import OrderModal from "@/components/OrderModal";
+import CitySelector from "@/components/CitySelector";
+
+import { api } from "../../config/api";
+import { showAlert, isAuthenticated, navigate } from "@/utils/platform";
+
+// Type pour un produit du catalogue
+export type CatalogueProduct = {
+  id: number;
+  name: string;
+  category: string;
+  image_url: string;
+  price: number;
+  complements: string;
+  description: string;
+  // Champs neutralisés pour la compatibilité avec OfferGrid
+  isCatalogueProduct: boolean;
+  status: string;
+  target_date: undefined; // ✅ FORCÉ À UNDEFINED
+  is_threshold_reached: boolean;
+  remaining_to_trigger: number;
+  reserved_portions: number;
+  price_per_unit: number;
+  progress_percentage: number;
+  remaining_capacity: number;
+  product: {
+    id: number;
+    name: string;
+    image_url: string;
+    category: string;
+    complements: string;
+  };
+};
+
+export type MappedOffer = {
+  id: string;
+  product?: any;
+  status: string;
+  is_threshold_reached: boolean;
+  remaining_to_trigger: number;
+  reserved_portions: number;
+  price_per_unit: number;
+  target_date?: string;
+  progress_percentage: number;
+  remaining_capacity: number;
+  [key: string]: any;
+};
+
+const getBusinessTodayString = (): string => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Africa/Douala',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(now);
+  const day = parts.find(p => p.type === 'day')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  return `${year}-${month}-${day}`;
+};
 
 export default function HomeScreen() {
-  const {
-    reels,
-    products,
-    filteredProducts,
-    setFilteredProducts,
-    loading,
-    handleConfirmOrder,
-    router,
-  } = useHomeData();
+  const router = useRouter();
+  
+  const [reels, setReels] = useState<any[]>([]);
+  const [catalogueProducts, setCatalogueProducts] = useState<CatalogueProduct[]>([]);
+  const [offers, setOffers] = useState<MappedOffer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // --- 1. RÉCUPÉRATION DES PARAMÈTRES (LA LIGNE QUI MANQUAIT) ---
-  const { ref, productId } = useLocalSearchParams();
-
-  // --- 2. ÉTATS ---
+  const [dimension, setDimension] = useState<OfferDimension>("🔥 À réserver");
+  const [culinaryCategory, setCulinaryCategory] = useState<string>("Tout");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Tout");
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const [isRefLoaded, setIsRefLoaded] = useState(false); // Pour forcer la mise à jour des badges
+  const [selectedCity, setSelectedCity] = useState<{ id: number; name: string } | null>(null);
+  const selectedCityRef = useRef<{ id: number; name: string } | null>(null);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
 
-  // --- 3. GESTION DE L'AFFILIATION ---
-  useEffect(() => {
-    if (ref) {
-      const saveRef = async () => {
-        try {
-          await AsyncStorage.setItem("active_affiliate_code", ref.toString());
-          console.log("✅ Code ambassadeur enregistré :", ref);
-          setIsRefLoaded((prev) => !prev); // Déclenche le rafraîchissement
-        } catch (e) {
-          console.error("Erreur storage ref:", e);
+  const businessTodayStr = useMemo(() => getBusinessTodayString(), []);
+
+  const refreshData = useCallback(async (forcedCity?: { id: number; name: string }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // ✅ Récupérer la ville stockée ou passée en argument direct
+      let currentCity = forcedCity || selectedCityRef.current;
+      if (!currentCity) {
+        const storedCity = await AsyncStorage.getItem('selected_city');
+        if (storedCity) {
+          try {
+            currentCity = JSON.parse(storedCity);
+            selectedCityRef.current = currentCity;
+            setSelectedCity(currentCity);
+          } catch (e) {
+            console.error("Erreur lecture selected_city:", e);
+          }
         }
-      };
-      saveRef();
-    }
-  }, [ref]);
-
-  // --- 4. OUVERTURE AUTOMATIQUE DU PRODUIT ---
-  useEffect(() => {
-    if (productId && products && products.length > 0) {
-      const targetProduct = products.find(
-        (p: any) => p.id.toString() === productId,
-      );
-      if (targetProduct) {
-        setSelectedItem(targetProduct);
-        setModalVisible(true);
       }
+
+      // Si aucune ville n'est encore configurée, ouvrir le sélecteur
+      if (!currentCity) {
+        setCityModalVisible(true);
+      }
+
+      const cityId = currentCity ? currentCity.id : null;
+
+      // ✅ Charger 3 sources de données en parallèle
+      const [reelsData, catalogueData, rawOffers] = await Promise.all([
+        api.get("/reels/").catch(() => []),
+        api.get("/products/catalogue").catch(() => []),
+        api.get(cityId ? `/offers/upcoming?days=7&city_id=${cityId}` : "/offers/upcoming?days=7").catch(() => []),
+      ]);
+
+      setReels(Array.isArray(reelsData) ? reelsData : []);
+
+      // ✅ MAPPAGE STRICT DU CATALOGUE : Neutralisation totale des champs d'offre
+      const safeCatalogue = Array.isArray(catalogueData) ? catalogueData : [];
+      const mappedCatalogue: CatalogueProduct[] = safeCatalogue.map((p: any) => ({
+        id: Number(p.id),
+        name: String(p.name || ""),
+        category: String(p.category || "Général"),
+        image_url: String(p.image_url || "https://via.placeholder.com/150"),
+        price: Number(p.price || 2500),
+        complements: String(p.complements || "Standard"),
+        description: String(p.description || ""),
+        
+        // Neutralisation explicite pour empêcher tout rendu de date ou de statut
+        isCatalogueProduct: true,
+        status: "catalogue",
+        target_date: undefined, 
+        is_threshold_reached: false,
+        remaining_to_trigger: 0,
+        reserved_portions: 0,
+        price_per_unit: Number(p.price || 2500),
+        progress_percentage: 0,
+        remaining_capacity: 999,
+        product: {
+          id: Number(p.id),
+          name: String(p.name || ""),
+          image_url: String(p.image_url || "https://via.placeholder.com/150"),
+          category: String(p.category || "Général"),
+          complements: String(p.complements || "Standard"),
+        }
+      }));
+      setCatalogueProducts(mappedCatalogue);
+
+      // Mappage des offres (pour "Menu du Jour")
+      const safeOffers = Array.isArray(rawOffers) ? rawOffers : [];
+      const mappedOffers: MappedOffer[] = safeOffers.map((offer: any) => ({
+        ...offer,
+        is_threshold_reached: offer.is_threshold_reached || false,
+        remaining_to_trigger: offer.remaining_to_trigger || 0,
+        reserved_portions: offer.reserved_portions || 0,
+        progress_percentage: offer.progress_percentage || 0,
+        remaining_capacity: offer.remaining_capacity || 0,
+      }));
+      setOffers(mappedOffers);
+    } catch (err: any) {
+      console.error("❌ Erreur chargement:", err);
+      setError("Impossible de charger le menu.");
+    } finally {
+      setLoading(false);
     }
-  }, [productId, products]);
+  }, []);
 
-  // --- 5. RAFRAÎCHISSEMENT AU FOCUS (RETOUR SUR L'ÉCRAN) ---
-  useFocusEffect(
-    useCallback(() => {
-      const loadData = async () => {
-        const name = await AsyncStorage.getItem("user_name");
-        setUserName(name);
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
-        // On vérifie si un code existe pour activer les badges ProductCard
-        const stored = await AsyncStorage.getItem("active_affiliate_code");
-        if (stored) setIsRefLoaded(true);
-      };
-      loadData();
-    }, []),
-  );
-
-  // --- LOGIQUE DE FILTRAGE ---
-  const filterItems = (query: string, category: string) => {
-    let temp = products;
-    if (query) {
-      temp = temp.filter((item: any) =>
-        item.product_name.toLowerCase().includes(query.toLowerCase()),
-      );
+  // ✂️ LOGIQUE D'AFFICHAGE
+  const displayedData = useMemo(() => {
+    if (dimension === "🍲 Menu du Jour") {
+      // Menu du Jour : DailyOffers confirmées pour AUJOURD'HUI
+      return offers.filter((offer) => {
+        const statusLower = offer.status?.toLowerCase();
+        return offer.target_date === businessTodayStr &&
+               ['confirmed', 'cooking', 'ready', 'delivering'].includes(statusLower) &&
+               (culinaryCategory === "Tout" || offer.product?.category === culinaryCategory);
+      });
     }
-    if (category !== "Tout") {
-      temp = temp.filter((item: any) => item.category === category);
+
+    // 🔥 À réserver : CATALOGUE DE PRODUITS (indépendant des dates)
+    let filtered = catalogueProducts;
+    if (culinaryCategory !== "Tout") {
+      filtered = filtered.filter(p => p.category === culinaryCategory);
     }
-    setFilteredProducts(temp);
-  };
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => p.name?.toLowerCase().includes(q));
+    }
+    return filtered;
+  }, [catalogueProducts, offers, dimension, culinaryCategory, searchQuery, businessTodayStr]);
 
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    filterItems(text, activeCategory);
-  };
+  // Nombre d'offres confirmées aujourd'hui vs recettes au catalogue
+  const dailyOffersCount = useMemo(() => {
+    return offers.filter((offer) => {
+      const statusLower = offer.status?.toLowerCase();
+      return offer.target_date === businessTodayStr &&
+             ['confirmed', 'cooking', 'ready', 'delivering'].includes(statusLower);
+    }).length;
+  }, [offers, businessTodayStr]);
 
-  const handleCategoryPress = (category: string) => {
-    setActiveCategory(category);
-    filterItems(searchQuery, category);
-  };
+  const reservationOffersCount = useMemo(() => {
+    return catalogueProducts.length;
+  }, [catalogueProducts.length]);
 
-  const checkAuthAndOrder = async (item: any) => {
-    const savedPhone = await AsyncStorage.getItem("user_phone");
-    if (!savedPhone || savedPhone.length < 8) {
-      Alert.alert(
-        "Identification requise",
-        "Tu dois être connecté pour commander.",
-        [
+  // Offre vedette pour "À réserver" : l'offre future la plus proche du seuil
+  const heroOffer = useMemo(() => {
+    if (dimension !== "🔥 À réserver") return null;
+    const pendingOffers = offers.filter((o) => 
+      !o.is_threshold_reached && 
+      ['proposed', 'reservation'].includes(o.status?.toLowerCase()) &&
+      o.target_date > businessTodayStr
+    );
+    if (pendingOffers.length === 0) return null;
+    return [...pendingOffers].sort((a, b) => b.progress_percentage - a.progress_percentage)[0];
+  }, [offers, dimension, businessTodayStr]);
+
+  const checkAuthAndOpenOrder = useCallback(
+    async (item: any) => {
+      const isAuth = await isAuthenticated(AsyncStorage);
+      if (!isAuth) {
+        showAlert("KemTchop", "Connecte-toi pour réserver ton plat.", [
           { text: "Plus tard", style: "cancel" },
-          { text: "Se connecter", onPress: () => router.push("/login") },
-        ],
-      );
-    } else {
+          { text: "Se connecter", onPress: () => navigate(router, "/login") },
+        ]);
+        return;
+      }
       setSelectedItem(item);
       setModalVisible(true);
-    }
-  };
+    },
+    [router]
+  );
 
-  const onFinalConfirm = async (orderData: any) => {
-    const storedRef = await AsyncStorage.getItem("active_affiliate_code");
-    const finalData = { ...orderData, affiliate_code: storedRef || null };
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("user_name").then(setUserName);
+    }, [])
+  );
 
-    handleConfirmOrder(finalData, setModalVisible);
-
-    // OPTIONNEL : On vide le parrain après l'achat pour repartir à zéro
-    // await AsyncStorage.removeItem("active_affiliate_code");
-  };
-
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {searchQuery === "" ? (
-        <>
-          {userName && (
-            <Text style={styles.welcomeText}>Salut, {userName} ! 👋</Text>
-          )}
-          <Text style={styles.sectionTitle}>À la une (Vidéos)</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.reelsScroll}
-          >
-            {reels.map((item: any) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.reelThumbContainer}
-                onPress={() =>
-                  router.push({
-                    pathname: "/reels",
-                    params: { startId: item.id },
-                  })
-                }
-              >
-                <View style={styles.storyCircle}>
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={styles.reelThumb}
-                  />
-                </View>
-                <Text numberOfLines={1} style={styles.reelName}>
-                  {item.product_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          {searchQuery === "" && products.length > 0 && (() => {
-  // 1. On cherche le produit que l'admin a coché "is_hero"
-  // 2. Si aucun n'est coché, on prend le premier de la liste par défaut
-  const featuredProduct = products.find((p: any) => p.is_hero === true) || products[0];
+  const getSafeMediaUrl = useCallback((url: string | null | undefined) => {
+    if (!url) return "https://via.placeholder.com/150";
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `https://api.kemtchop.shop${url.startsWith("/") ? "" : "/"}${url}`;
+  }, []);
 
   return (
-    <>
-      <Text style={styles.sectionTitle}>Suggestion du Chef</Text>
-      <HeroCard 
-        item={featuredProduct} 
-        onOrder={() => checkAuthAndOrder(featuredProduct)} 
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <HomeHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        userName={userName}
+        selectedCity={selectedCity}
+        onPressCity={() => setCityModalVisible(true)}
       />
-    </>
-  );
-})()}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.categoriesScroll}
-          >
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => handleCategoryPress(cat)}
-                style={[
-                  styles.categoryChip,
-                  activeCategory === cat && styles.categoryChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    activeCategory === cat && styles.categoryTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <Text style={styles.sectionTitle}>Menu du jour</Text>
-        </>
-      ) : (
-        <Text style={styles.sectionTitle}>Résultats pour "{searchQuery}"</Text>
-      )}
-    </View>
-  );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <Text style={styles.logo}>KEMTCHOP</Text>
-        <SearchBar value={searchQuery} onChange={handleSearch} />
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#E31C25" />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredProducts}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ProductCard
-              item={item}
-              onOrder={() => checkAuthAndOrder(item)}
-              key={isRefLoaded ? "loaded" : "notloaded"} // Force le re-rendu quand le code change
+      <OfferGrid
+        offers={displayedData}
+        loading={loading}
+        error={error}
+        onOrder={checkAuthAndOpenOrder}
+        onRefresh={refreshData}
+        searchQuery={searchQuery}
+        getMediaUrl={getSafeMediaUrl}
+        renderCustomHeader={
+          <View style={styles.headerContainer}>
+            <ReelsSection
+              reels={reels}
+              getMediaUrl={getSafeMediaUrl}
+              onOrder={checkAuthAndOpenOrder}
             />
-          )}
-          ListHeaderComponent={renderHeader}
-          numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+            
+            {heroOffer && (
+              <HeroOfferCard
+                offer={heroOffer}
+                onOrder={checkAuthAndOpenOrder}
+                getMediaUrl={getSafeMediaUrl}
+              />
+            )}
+            
+            <ProductionFilterSection
+              productionDimension={dimension}
+              setProductionDimension={setDimension}
+              culinaryCategory={culinaryCategory}
+              setCulinaryCategory={setCulinaryCategory}
+              dailyCount={dailyOffersCount}
+              reservationCount={reservationOffersCount}
+            />
+            
+            <Text style={styles.subSectionTitle}>
+              {dimension === "🔥 À réserver"
+                ? `🔥 Plats à Réserver (${displayedData.length})`
+                : `🍲 Menu du Jour (${displayedData.length})`}
+            </Text>
+            
+            {/* 👨‍🍳 État Vide Explicatif si Menu du Jour n'a aucun plat en cours */}
+            {dimension === "🍲 Menu du Jour" && displayedData.length === 0 && !loading && (
+              <View style={styles.emptyStateCard}>
+                <View style={styles.emptyStateIconBadge}>
+                  <Text style={{ fontSize: 32 }}>👨‍🍳</Text>
+                </View>
+                <Text style={styles.emptyStateTitle}>Nos chefs préparent les prochains services !</Text>
+                <Text style={styles.emptyStateDesc}>
+                  Aucun plat n'est en livraison immédiate aujourd'hui.{'\n'}
+                  Réservez dès maintenant vos portions pour demain ou les jours suivants afin de garantir la production (seuil de 4 portions) !
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyStateButton}
+                  onPress={() => setDimension("🔥 À réserver")}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.emptyStateButtonText}>
+                    🔥 Voir les plats à réserver ({catalogueProducts.length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {dimension === "🔥 À réserver" && displayedData.length === 0 && !loading && (
+              <Text style={styles.emptyHint}>
+                Aucun plat disponible pour le moment dans cette catégorie.
+              </Text>
+            )}
+          </View>
+        }
+      />
 
       {selectedItem && (
         <OrderModal
           visible={modalVisible}
           item={selectedItem}
-          onClose={() => setModalVisible(false)}
-          onConfirm={onFinalConfirm}
+          onClose={() => {
+            setModalVisible(false);
+            setSelectedItem(null);
+          }}
+          onConfirm={() => {
+            setModalVisible(false);
+            setSelectedItem(null);
+            refreshData();
+          }}
         />
       )}
+
+      <CitySelector
+        visible={cityModalVisible}
+        onSelect={(city) => {
+          selectedCityRef.current = city;
+          setSelectedCity(city);
+          setCityModalVisible(false);
+          refreshData(city);
+        }}
+        onClose={selectedCity ? () => setCityModalVisible(false) : undefined}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  topBar: {
-    paddingBottom: 10,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  logo: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#E31C25",
-    textAlign: "center",
-    marginVertical: 10,
-  },
-  welcomeText: {
-    marginLeft: 20,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 5,
-  },
+  container: { flex: 1, backgroundColor: "#f8fafc" },
   headerContainer: { paddingVertical: 10 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    marginLeft: 20,
-    marginBottom: 15,
-    color: "#000",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#0f172a",
+    paddingHorizontal: 16,
+    marginTop: 15,
+    marginBottom: 8,
   },
-  reelsScroll: { paddingLeft: 20, marginBottom: 15 },
-  reelThumbContainer: { marginRight: 15, alignItems: "center", width: 75 },
-  storyCircle: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    borderWidth: 2.5,
-    borderColor: "#E31C25",
-    padding: 3,
-    justifyContent: "center",
-    alignItems: "center",
+  emptyHint: {
+    paddingHorizontal: 16,
+    color: "#94a3b8",
+    fontSize: 13,
+    fontStyle: "italic",
+    marginTop: 8,
   },
-  reelThumb: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: "#eee",
+  emptyStateCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    textAlign: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  reelName: {
-    fontSize: 10,
-    marginTop: 6,
-    textAlign: "center",
-    color: "#333",
-    fontWeight: "600",
+  emptyStateIconBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff1f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  categoriesScroll: { marginBottom: 20, paddingHorizontal: 20 },
-  categoryChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#f5f5f5",
-    marginRight: 10,
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 6,
   },
-  categoryChipActive: { backgroundColor: "#000" },
-  categoryText: { color: "#666", fontWeight: "700" },
-  categoryTextActive: { color: "#fff" },
-  columnWrapper: { justifyContent: "space-between", paddingHorizontal: 20 },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 100,
+  emptyStateDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
-  loadingText: { marginTop: 10, color: "#666", fontWeight: "500" },
+  emptyStateButton: {
+    backgroundColor: '#E31C25',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: '#E31C25',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  emptyStateButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
 });

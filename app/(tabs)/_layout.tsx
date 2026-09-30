@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
 
@@ -7,19 +7,19 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#E31C25", // Ton rouge Kemtchop
-        tabBarInactiveTintColor: "#888",
+        tabBarActiveTintColor: "#E31C25",
+        tabBarInactiveTintColor: "#64748b",
         tabBarStyle: {
           height: 65,
+          backgroundColor: "#ffffff",
+          borderTopWidth: 1,
+          borderTopColor: "#f1f5f9",
           paddingBottom: 10,
           paddingTop: 5,
-          borderTopWidth: 1,
-          borderTopColor: "#eee",
-          backgroundColor: "#fff",
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "500",
+          fontSize: 11,
+          fontWeight: "600",
         },
       }}
     >
@@ -29,9 +29,9 @@ export default function TabLayout() {
         options={{
           title: "Accueil",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
+            <MaterialCommunityIcons
               name={focused ? "home" : "home-outline"}
-              size={24}
+              size={26}
               color={color}
             />
           ),
@@ -44,7 +44,7 @@ export default function TabLayout() {
         options={{
           title: "Commandes",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
+            <MaterialCommunityIcons
               name={focused ? "receipt" : "receipt-outline"}
               size={24}
               color={color}
@@ -53,15 +53,15 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 3. CONSEILS / CHAT (La nouvelle page Solution 3) */}
+      {/* 3. CONSEILS / CHAT */}
       <Tabs.Screen
         name="chat"
         options={{
           title: "Conseils",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
+            <MaterialCommunityIcons
               name={
-                focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"
+                focused ? "chat-processing" : "chat-processing-outline"
               }
               size={24}
               color={color}
@@ -76,9 +76,9 @@ export default function TabLayout() {
         options={{
           title: "Profil",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person" : "person-outline"}
-              size={24}
+            <MaterialCommunityIcons
+              name={focused ? "account" : "account-outline"}
+              size={26}
               color={color}
             />
           ),

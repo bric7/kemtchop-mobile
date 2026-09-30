@@ -1,113 +1,63 @@
-import { apiFetch } from "@/config/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Linking from "expo-linking";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+// app/hooks/useHomeData.ts
+import { useState, useCallback, useEffect } from 'react';
+import { api } from '../config/api';
+import { Campaign } from '../types/collective_pot';
 
 export function useHomeData() {
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [reels, setReels] = useState([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [reels, setReels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
-  // 1. Logique Deep Link (Capture du code parrain au clic sur le lien)
-  useEffect(() => {
-    const handleDeepLink = async (event: { url: string }) => {
-      let data = Linking.parse(event.url);
-      if (data.queryParams && data.queryParams.ref) {
-        // ON UTILISE LA MÊME CLÉ QUE DANS INDEX.TS
-        await AsyncStorage.setItem(
-          "active_affiliate_code",
-          data.queryParams.ref as string,
-        );
-        console.log(
-          "🎯 Système : Parrainage détecté via lien ->",
-          data.queryParams.ref,
-        );
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // ✅ Appeler /campaigns/tomorrow au lieu de /daily-menu/tomorrow
+      const campaignsResponse = await api.get('/campaigns/tomorrow', true);
+      setCampaigns(campaignsResponse || []);
+      
+      // Garder les reels
+      try {
+        const reelsResponse = await api.get('/reels/', true);
+        setReels(reelsResponse || []);
+      } catch {
+        setReels([]);
       }
-    };
-
-    const subscription = Linking.addEventListener("url", handleDeepLink);
-    Linking.getInitialURL().then((url) => url && handleDeepLink({ url }));
-    return () => subscription.remove();
+    } catch (err: any) {
+      console.error('[useHomeData]', err);
+      setError(err?.message || 'Impossible de charger les marmites');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // 2. Chargement des données (Vidéos et Produits)
-  const fetchData = async () => {
-  setLoading(true);
-  try {
-    // Ajoute un petit délai ou vérifie si l'API répond
-    const data = await apiFetch("/reels/");
-    
-    if (!data) throw new Error("Données vides");
+  const refreshData = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
-    setReels(data);
-    setProducts(data);
-    setFilteredProducts(data);
-  } catch (err: any) {
-    // Si l'erreur est liée au réseau lors du basculement 4G
-    console.error("❌ Erreur réseau détectée :", err.message);
-    // Optionnel : ne pas afficher d'alerte si c'est juste un micro-coupure
-  } finally {
-    setLoading(false);
-  }
-};
+  const getMediaUrl = useCallback((url: string | null) => {
+    if (!url) return '';
+    return url.startsWith('http') ? url : `${api.BASE_URL}${url}`;
+  }, []);
+
+  const handleConfirmOrder = useCallback(async (orderData: any, setModalVisible: (v: boolean) => void) => {
+    setModalVisible(false);
+    await fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  // 3. Envoi de la Commande vers FastAPI
-  // ✅ Remplace TOUTE la fonction par celle-ci :
-  const handleConfirmOrder = async (orderData: any, setModalVisible: any) => {
-    try {
-      const savedPhone = await AsyncStorage.getItem("user_phone");
-      const savedName = await AsyncStorage.getItem("user_name");
-      const affiliateCode = await AsyncStorage.getItem("active_affiliate_code");
-
-      const payload = {
-        product_name: orderData.product_name || "Plat KEMTCHOP",
-        customer_name: savedName || orderData.customerName || "Client",
-        phone: savedPhone || orderData.phone,
-        zone: orderData.zone || "Non spécifiée",
-        total_amount: orderData.total_amount || 0,
-        deposit_amount: orderData.deposit_amount || 0,
-        status: "en_attente",
-        affiliate_code: affiliateCode || null,
-        portion_size: orderData.portion_size || "Standard",
-        complement: orderData.complement || "Aucun",
-        delivery_date: orderData.delivery_date || "",
-        delivery_time: orderData.delivery_time || "",
-      };
-
-      // ✅ Utilise apiFetch au lieu de fetch
-      const result = await apiFetch("/orders/create", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      if (result.status === "success") {
-        Alert.alert(
-          "Succès ! 🎉",
-          "Ta commande a été reçue. On te contacte sur WhatsApp !",
-        );
-        if (setModalVisible) setModalVisible(false);
-      }
-    } catch (error: any) {
-      console.error("❌ Erreur commande:", error);
-      Alert.alert("Erreur", error.message || "Échec de la commande");
-    }
-  };
+  }, [fetchData]);
 
   return {
     reels,
-    products,
-    filteredProducts,
-    setFilteredProducts,
+    campaigns,  // ✅ Retourne campaigns (pas dailyMenus)
     loading,
+    error,
     handleConfirmOrder,
-    router,
+    getMediaUrl,
+    refreshData,
   };
 }

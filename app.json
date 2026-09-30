@@ -3,18 +3,17 @@
     "name": "kemtchop",
     "slug": "kemtchop-mobile",
     "version": "1.0.0",
+    "scheme": "kemtchop",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kemtchop",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brice.kemtchop"
+      "bundleIdentifier": "com.sensei10.kemtchop"
     },
     "android": {
       "usesCleartextTraffic": true,
-      "package": "com.brice.kemtchop",
+      "package": "com.sensei10.kemtchop",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -24,12 +23,12 @@
               "scheme": "https",
               "host": "kemtchop.com",
               "pathPrefix": "/setup-password"
-            },
-            {
-              "scheme": "kemtchop"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
@@ -39,11 +38,22 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": false,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "name": "KemTchop",
+      "shortName": "KemTchop",
+      "themeColor": "#E31C25",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",
@@ -58,7 +68,17 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.kotlin.** { *; }"
+          }
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -67,8 +87,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "bd1629f6-266d-40c1-878d-c735b043b536"
+        "projectId": "81bf6e71-0bae-407b-858f-38994170b6e0"
       }
-    }
+    },
+    "owner": "sensei10"
   }
 }
