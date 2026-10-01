@@ -1,5 +1,5 @@
-// KemTchop Service Worker for PWA v10 (Network-First for HTML navigation)
-const CACHE_NAME = 'kemtchop-pwa-v10';
+// KemTchop Service Worker for PWA v11 (Optimisé Données Mobiles & Chargement Rapide)
+const CACHE_NAME = 'kemtchop-pwa-v11';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -9,7 +9,13 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Pré-cache partiel:', err);
+      });
+    }).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -26,51 +32,106 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignorer les requêtes non-GET, les API, Campay, backend
+  const url = event.request.url;
+
+  // Ignorer les requêtes non-GET et les appels API dynamiques
   if (
     event.request.method !== 'GET' ||
-    event.request.url.includes('/api.') ||
-    event.request.url.includes('campay') ||
-    event.request.url.includes(':8000') ||
-    event.request.url.includes('railway.app') ||
-    event.request.url.includes('fly.dev')
+    url.includes('/api.') ||
+    url.includes('campay') ||
+    url.includes(':8000') ||
+    url.includes('/users/') ||
+    url.includes('/orders/')
   ) {
     return;
   }
 
-  // 🔄 Navigation (HTML) : NETWORK-FIRST
-  // Permet de recevoir instantanément le nouvel index.html sans être bloqué par le cache
+  // 🔄 1. Navigation HTML : Network avec Timeout ultra-rapide (1200ms) puis Cache immédiat
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-          }
-          return networkResponse;
-        })
-        .catch(() => caches.match(event.request) || caches.match('/'))
+      new Promise((resolve) => {
+        let didTimeOut = false;
+        const timer = setTimeout(() => {
+          didTimeOut = true;
+          caches.match(event.request).then((cached) => {
+            if (cached) resolve(cached);
+          });
+        }, 1200);
+
+        fetch(event.request)
+          .then((networkResponse) => {
+            clearTimeout(timer);
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            if (!didTimeOut) resolve(networkResponse);
+          })
+          .catch(() => {
+            clearTimeout(timer);
+            caches.match(event.request).then((cached) => {
+              resolve(cached || caches.match('/'));
+            });
+          });
+      })
     );
     return;
   }
 
-  // ⚡ Assets statiques (JS, CSS, images avec hash) : Stale-While-Revalidate
+  // ⚡ 2. Assets JS / CSS / Polices Expo (avec hash de version) : Cache-First
+  if (url.includes('/_expo/static/') || url.includes('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // 🖼️ 3. Images de plats (Cloudinary, Unsplash) : Stale-While-Revalidate (économise les Mo mobiles)
+  if (
+    url.includes('res.cloudinary.com') ||
+    url.includes('images.unsplash.com') ||
+    url.endsWith('.png') ||
+    url.endsWith('.jpg') ||
+    url.endsWith('.jpeg') ||
+    url.endsWith('.webp')
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        }).catch(() => cached);
+
+        return cached || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // Fallback par défaut Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          networkResponse.type === 'basic'
-        ) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return networkResponse;
-      }).catch(() => cachedResponse);
+      }).catch(() => cached);
 
-      return cachedResponse || fetchPromise;
+      return cached || fetchPromise;
     })
   );
 });

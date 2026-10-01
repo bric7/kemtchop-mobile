@@ -12,6 +12,7 @@ import ProductionFilterSection, { OfferDimension } from "@/components/home/Produ
 import OfferGrid from "@/components/home/DailyOfferGrid";
 import OrderModal from "@/components/OrderModal";
 import CitySelector from "@/components/CitySelector";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 import { api } from "../../config/api";
 import { showAlert, isAuthenticated, navigate } from "@/utils/platform";
@@ -262,9 +263,18 @@ export default function HomeScreen() {
   const getSafeMediaUrl = useCallback((url: string | null | undefined) => {
     const fallbackFoodImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
     if (!url || url.includes("via.placeholder.com")) return fallbackFoodImage;
-    if (url.startsWith("http://")) return "https://" + url.slice(7);
-    if (url.startsWith("https://")) return url;
-    return `https://api.kemtchop.shop${url.startsWith("/") ? "" : "/"}${url}`;
+    let secureUrl = url;
+    if (secureUrl.startsWith("http://")) secureUrl = "https://" + secureUrl.slice(7);
+    if (!secureUrl.startsWith("https://")) {
+      secureUrl = `https://api.kemtchop.shop${secureUrl.startsWith("/") ? "" : "/"}${secureUrl}`;
+    }
+    // ⚡ Optimisation automatique Cloudinary (WebP/AVIF auto + compression légère w_600)
+    if (secureUrl.includes("res.cloudinary.com") && secureUrl.includes("/upload/")) {
+      if (!secureUrl.includes("/f_auto,q_auto")) {
+        secureUrl = secureUrl.replace("/upload/", "/upload/f_auto,q_auto,w_600/");
+      }
+    }
+    return secureUrl;
   }, []);
 
   return (
@@ -287,6 +297,7 @@ export default function HomeScreen() {
         getMediaUrl={getSafeMediaUrl}
         renderCustomHeader={
           <View style={styles.headerContainer}>
+            <PWAInstallPrompt />
             <ReelsSection
               reels={reels}
               getMediaUrl={getSafeMediaUrl}

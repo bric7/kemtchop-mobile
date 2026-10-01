@@ -1,6 +1,8 @@
 {
+  "id": "/",
   "short_name": "KemTchop",
   "name": "KemTchop — Grillades & Plats du Jour",
+  "description": "Vos grillades et plats camerounais en réservation directe et livraison rapide",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -16,10 +18,11 @@
     }
   ],
   "start_url": "/",
-  "background_color": "#ffffff",
-  "theme_color": "#E31C25",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "scope": "/",
-  "description": "Vos grillades et plats camerounais en réservation directe et livraison rapide"
+  "background_color": "#ffffff",
+  "theme_color": "#E31C25",
+  "categories": ["food", "shopping", "lifestyle"],
+  "prefer_related_applications": false
 }

@@ -17,6 +17,7 @@ import AffiliateMenu from "@/component/AffiliateMenu";
 import AffiliateWallet from "@/component/AffiliateWallet";
 import ProfileHeader from "@/component/ProfileHeader";
 import SettingsMenu from "@/component/SettingsMenu";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { api } from "../../config/api";
 
 export default function ProfileScreen() {
@@ -164,6 +165,9 @@ export default function ProfileScreen() {
           totalEarned={totalEarned}
           onWhatsAppPress={handleAffiliateWhatsApp}
         />
+
+        {/* 4. INSTALLATION PWA */}
+        <PWAInstallPrompt />
 
         <SettingsMenu onLogout={handleLogout} />
       </ScrollView>
