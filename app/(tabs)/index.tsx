@@ -268,12 +268,6 @@ export default function HomeScreen() {
     if (!secureUrl.startsWith("https://")) {
       secureUrl = `https://api.kemtchop.shop${secureUrl.startsWith("/") ? "" : "/"}${secureUrl}`;
     }
-    // ⚡ Optimisation automatique Cloudinary (WebP/AVIF auto + compression légère w_600)
-    if (secureUrl.includes("res.cloudinary.com") && secureUrl.includes("/upload/")) {
-      if (!secureUrl.includes("/f_auto,q_auto")) {
-        secureUrl = secureUrl.replace("/upload/", "/upload/f_auto,q_auto,w_600/");
-      }
-    }
     return secureUrl;
   }, []);
 

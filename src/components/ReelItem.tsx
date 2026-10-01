@@ -46,22 +46,14 @@ function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: Re
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [showPlayOverlay, setShowPlayOverlay] = useState(false);
 
-  // Sécuriser les URL en HTTPS et optimiser le poids sur navigateurs mobiles
-  const toHttps = (url: string | null | undefined, isVideo = false) => {
+  // Sécuriser les URL en HTTPS pour les navigateurs mobiles
+  const toHttps = (url: string | null | undefined) => {
     if (!url) return '';
-    let secure = url.startsWith('http://') ? 'https://' + url.slice(7) : url;
-    if (secure.includes('res.cloudinary.com') && secure.includes('/upload/')) {
-      if (isVideo && !secure.includes('/f_auto,q_auto')) {
-        secure = secure.replace('/upload/', '/upload/f_auto,q_auto,w_720/');
-      } else if (!isVideo && !secure.includes('/f_auto,q_auto')) {
-        secure = secure.replace('/upload/', '/upload/f_auto,q_auto,w_600/');
-      }
-    }
-    return secure;
+    return url.startsWith('http://') ? 'https://' + url.slice(7) : url;
   };
 
-  const videoUrl = toHttps(item.video_url, true);
-  const imageUrl = toHttps(item.image_url || item.product?.image_url, false);
+  const videoUrl = toHttps(item.video_url);
+  const imageUrl = toHttps(item.image_url || item.product?.image_url);
   const hasVideo = !!videoUrl && videoUrl.startsWith('https://') && !videoError;
   const hasImage = !!imageUrl && imageUrl.startsWith('https://');
 
