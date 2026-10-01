@@ -78,7 +78,7 @@ export default function DailyOfferGrid({
     return productName.includes(searchQuery.toLowerCase());
   });
 
-  const renderOfferCard = ({ item }: { item: DailyOfferItem }) => {
+  const renderOfferCard = ({ item, index }: { item: DailyOfferItem; index: number }) => {
     const confirmed = isMenuDuJour(item);
     const rawImage = item.product?.image_url || (item as any).image_url;
     const imageUrl = getMediaUrl(rawImage);
@@ -106,8 +106,9 @@ export default function DailyOfferGrid({
             source={{ uri: imageUrl }} 
             style={styles.image} 
             contentFit="cover" 
-            transition={200}
+            transition={150}
             cachePolicy="memory-disk"
+            priority={index < 2 ? "high" : "low"}
           />
           
           {/* Badge statut flottant */}

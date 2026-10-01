@@ -245,7 +245,7 @@ export default function ReelsSection({ reels, getMediaUrl, onOrder }: ReelsSecti
           onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
           scrollEventThrottle={16}
         >
-          {filteredReels.map((item) => {
+          {filteredReels.map((item, index) => {
             const isToday = isItemDailyToday(item);
             const coverUrl = getMediaUrl(item.image_url || item.product?.image_url);
             const hasVideo = !!item.video_url;
@@ -260,11 +260,12 @@ export default function ReelsSection({ reels, getMediaUrl, onOrder }: ReelsSecti
                 activeOpacity={0.92}
               >
                 <Image
-                  source={{ uri: coverUrl || "https://via.placeholder.com/150" }}
+                  source={{ uri: coverUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60" }}
                   style={styles.reelMedia}
                   contentFit="cover"
                   cachePolicy="memory-disk"
-                  transition={200}
+                  transition={150}
+                  priority={index < 3 ? "high" : "low"}
                 />
 
                 {/* Badge Prix en haut à gauche */}

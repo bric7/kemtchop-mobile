@@ -338,14 +338,19 @@ export default function ReelsScreen() {
           offset: reelHeight * index,
           index,
         })}
-        renderItem={({ item }) => (
-          <ReelItem
-            item={item}
-            isActive={activeId === item.id}
-            containerHeight={reelHeight}
-            onPressOrder={() => onPressOrder(item)}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const activeIndex = reels.findIndex((r) => r.id === activeId);
+          const isNext = index === activeIndex + 1;
+          return (
+            <ReelItem
+              item={item}
+              isActive={activeId === item.id}
+              isNext={isNext}
+              containerHeight={reelHeight}
+              onPressOrder={() => onPressOrder(item)}
+            />
+          );
+        }}
       />
 
       {/* 🧭 Contrôles de navigation Suivant / Précédent */}

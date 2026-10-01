@@ -36,11 +36,12 @@ interface ReelItemProps {
     sides?: string[];
   };
   isActive: boolean;
+  isNext?: boolean;
   containerHeight: number;
   onPressOrder: () => void;
 }
 
-function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: ReelItemProps) {
+function ReelItemComponent({ item, isActive, isNext = false, containerHeight, onPressOrder }: ReelItemProps) {
   const [videoError, setVideoError] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
@@ -197,46 +198,61 @@ function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: Re
           )}
           <View style={styles.ambientDarken} />
 
-          {/* Lecteur vidéo Web (HTML5 direct avec playsinline pour iOS Safari & Android Chrome) */}
+          {/* Lecteur vidéo Web : Un seul stream actif à la fois (preload=none pour le suivant, image pour les autres) */}
           {isWeb ? (
-            <video
-              ref={webVideoRef}
-              src={videoUrl}
-              playsInline
-              // @ts-ignore
-              webkit-playsinline="true"
-              autoPlay={isActive}
-              muted={isMuted}
-              loop
-              preload="metadata"
-              crossOrigin="anonymous"
-              style={{
-                width: '100%',
-                height: '100%',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                objectFit: fitMode,
-                backgroundColor: '#000',
-              }}
-              onError={(e) => {
-                console.warn('[ReelItem Web] Erreur vidéo HTML5:', e);
-              }}
-            />
+            isActive || isNext ? (
+              <video
+                ref={webVideoRef}
+                src={videoUrl}
+                poster={imageUrl}
+                playsInline
+                // @ts-ignore
+                webkit-playsinline="true"
+                autoPlay={isActive}
+                muted={isMuted}
+                loop
+                preload={isActive ? "metadata" : "none"}
+                crossOrigin="anonymous"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  objectFit: fitMode,
+                  backgroundColor: '#000',
+                }}
+                onError={(e) => {
+                  console.warn('[ReelItem Web] Erreur vidéo HTML5:', e);
+                }}
+              />
+            ) : (
+              /* Pour les reels non-adjacents : affiche uniquement l'affiche sans télécharger de flux vidéo */
+              hasImage && (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.centeredImage}
+                  contentFit={fitMode}
+                  cachePolicy="memory-disk"
+                />
+              )
+            )
           ) : (
-            <VideoView
-              player={player}
-              style={styles.videoPlayer}
-              contentFit={fitMode}
-              nativeControls={false}
-              allowsFullscreen={false}
-              allowsPictureInPicture={false}
-              onError={() => {
-                console.warn('[ReelItem Native] Erreur VideoView');
-              }}
-            />
+            isActive && (
+              <VideoView
+                player={player}
+                style={styles.videoPlayer}
+                contentFit={fitMode}
+                nativeControls={false}
+                allowsFullscreen={false}
+                allowsPictureInPicture={false}
+                onError={() => {
+                  console.warn('[ReelItem Native] Erreur VideoView');
+                }}
+              />
+            )
           )}
 
           {/* Bouton de lecture si le navigateur a bloqué l'autoplay */}
