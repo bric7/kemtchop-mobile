@@ -47,13 +47,26 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [showPlayOverlay, setShowPlayOverlay] = useState(false);
 
-  // Sécuriser les URL en HTTPS pour les navigateurs mobiles
+  // Sécuriser et optimiser l'URL vidéo pour le streaming mobile ultra-rapide (1,24 Mo / 20s)
+  const getOptimizedVideoUrl = (rawUrl: string | null | undefined): string => {
+    if (!rawUrl) return '';
+    let url = rawUrl.startsWith('http://') ? 'https://' + rawUrl.slice(7) : rawUrl;
+    
+    // Si c'est une vidéo Cloudinary, injecter la transformation validée à 1,24 Mo (so_0,du_20,w_480,q_auto:eco)
+    if (url.includes('res.cloudinary.com') && url.includes('/video/upload/')) {
+      if (!url.includes('/so_0,du_20,w_480,q_auto:eco/')) {
+        url = url.replace('/video/upload/', '/video/upload/so_0,du_20,w_480,q_auto:eco/');
+      }
+    }
+    return url;
+  };
+
   const toHttps = (url: string | null | undefined) => {
     if (!url) return '';
     return url.startsWith('http://') ? 'https://' + url.slice(7) : url;
   };
 
-  const videoUrl = toHttps(item.video_url);
+  const videoUrl = getOptimizedVideoUrl(item.video_url);
   const imageUrl = toHttps(item.image_url || item.product?.image_url);
   const hasVideo = !!videoUrl && videoUrl.startsWith('https://') && !videoError;
   const hasImage = !!imageUrl && imageUrl.startsWith('https://');
@@ -80,7 +93,13 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
     if (!v) return;
 
     const onCanPlay = () => console.log('✅ [Reel Web] VIDEO CANPLAY:', v.currentSrc);
-    const onPlaying = () => console.log('▶️ [Reel Web] VIDEO PLAYING:', v.currentSrc);
+    const onPlaying = () => {
+      console.log('▶️ [Reel Web] VIDEO PLAYING:', v.currentSrc);
+      setShowPlayOverlay(false);
+    };
+    const onPause = () => {
+      if (isActive) setShowPlayOverlay(true);
+    };
     const onWaiting = () => console.warn('⏳ [Reel Web] VIDEO WAITING:', v.currentSrc);
     const onStalled = () => console.warn('⚠️ [Reel Web] VIDEO STALLED:', v.currentSrc);
     const onError = () => {
@@ -104,18 +123,21 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
       if (isActive) {
         try {
           await v.play();
+          setShowPlayOverlay(false);
           console.log('▶️ [Reel Web] PLAY SUCCESS', {
             paused: v.paused,
             readyState: v.readyState,
           });
         } catch (error: any) {
-          console.error('❌ [Reel Web] PLAY FAILED (interaction nécessaire ou autoplay bloqué):', error?.message);
+          setShowPlayOverlay(true);
+          console.log('ℹ️ [Reel Web] En attente de tap:', error?.message);
         }
       }
     };
 
     v.addEventListener('canplay', onCanPlay);
     v.addEventListener('playing', onPlaying);
+    v.addEventListener('pause', onPause);
     v.addEventListener('waiting', onWaiting);
     v.addEventListener('stalled', onStalled);
     v.addEventListener('error', onError);
@@ -123,15 +145,23 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
 
     if (isActive && v.readyState >= 1 && v.paused) {
       v.play()
-        .then(() => console.log('▶️ [Reel Web] PLAY SUCCESS'))
-        .catch((e) => console.warn('⚠️ [Reel Web] play() direct catch:', e.message));
+        .then(() => {
+          setShowPlayOverlay(false);
+          console.log('▶️ [Reel Web] PLAY SUCCESS');
+        })
+        .catch((e) => {
+          setShowPlayOverlay(true);
+          console.warn('⚠️ [Reel Web] play() direct catch:', e.message);
+        });
     } else if (!isActive && !v.paused) {
       v.pause();
+      setShowPlayOverlay(false);
     }
 
     return () => {
       v.removeEventListener('canplay', onCanPlay);
       v.removeEventListener('playing', onPlaying);
+      v.removeEventListener('pause', onPause);
       v.removeEventListener('waiting', onWaiting);
       v.removeEventListener('stalled', onStalled);
       v.removeEventListener('error', onError);
@@ -215,7 +245,11 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
   return (
     <View style={[styles.container, { height: containerHeight }]}>
       {hasVideo ? (
-        <View style={styles.media}>
+        <TouchableOpacity 
+          style={styles.media} 
+          activeOpacity={1} 
+          onPress={handleMediaTap}
+        >
           {/* Fond ambiant flouté */}
           {hasImage && (
             <Image
@@ -234,8 +268,9 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
                 ref={webVideoRef}
                 src={videoUrl}
                 poster={imageUrl}
-                controls
-                muted
+                loop
+                autoPlay={isActive}
+                muted={isMuted}
                 playsInline
                 // @ts-ignore
                 webkit-playsinline="true"
@@ -248,9 +283,9 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  objectFit: 'cover',
+                  objectFit: fitMode,
                   backgroundColor: '#000',
-                  zIndex: 5,
+                  zIndex: 2,
                 }}
               />
             ) : (
@@ -278,7 +313,14 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
               />
             )
           )}
-        </View>
+
+          {/* Bouton de lecture centré si la vidéo est en pause */}
+          {showPlayOverlay && (
+            <View style={styles.playOverlay} pointerEvents="none">
+              <Play size={48} color="#ffffff" />
+            </View>
+          )}
+        </TouchableOpacity>
       ) : hasImage ? (
         <View style={styles.media}>
           {/* Fond ambiant flouté */}
