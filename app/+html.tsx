@@ -16,6 +16,12 @@ export default function Root({ children }: PropsWithChildren) {
         />
         <title>KemTchop — Grillades & Plats du Jour</title>
 
+        {/* Resource Hints for High Performance */}
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="preconnect" href="https://api.kemtchop.shop" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.kemtchop.shop" />
+
         {/* PWA & Icons */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" type="image/png" href="/favicon.png" />

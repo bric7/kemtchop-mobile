@@ -74,13 +74,66 @@ const getBusinessTodayString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+const INITIAL_TOP_DISHES: CatalogueProduct[] = [
+  {
+    id: 1,
+    name: "Ndole",
+    category: "Plats Locaux",
+    image_url: "https://res.cloudinary.com/dqk85euoh/image/upload/v1783287036/kemtchop/products/sdwiobmhtiv4vprblqyy.jpg",
+    price: 2000,
+    complements: "Bâton de manioc,Manioc vapeur,Plantain frit",
+    description: "",
+    isCatalogueProduct: true,
+    status: "catalogue",
+    target_date: undefined,
+    is_threshold_reached: false,
+    remaining_to_trigger: 0,
+    reserved_portions: 0,
+    price_per_unit: 2000,
+    progress_percentage: 0,
+    remaining_capacity: 999,
+    product: {
+      id: 1,
+      name: "Ndole",
+      image_url: "https://res.cloudinary.com/dqk85euoh/image/upload/v1783287036/kemtchop/products/sdwiobmhtiv4vprblqyy.jpg",
+      category: "Plats Locaux",
+      complements: "Bâton de manioc,Manioc vapeur,Plantain frit",
+    }
+  },
+  {
+    id: 2,
+    name: "Ndolé",
+    category: "Plats Locaux",
+    image_url: "https://res.cloudinary.com/dqk85euoh/image/upload/v1783412026/kemtchop/products/mn80qhghwphlwghpwnol.jpg",
+    price: 1499,
+    complements: "Bâton de manioc,Manioc vapeur,Plantain frit",
+    description: "",
+    isCatalogueProduct: true,
+    status: "catalogue",
+    target_date: undefined,
+    is_threshold_reached: false,
+    remaining_to_trigger: 0,
+    reserved_portions: 0,
+    price_per_unit: 1499,
+    progress_percentage: 0,
+    remaining_capacity: 999,
+    product: {
+      id: 2,
+      name: "Ndolé",
+      image_url: "https://res.cloudinary.com/dqk85euoh/image/upload/v1783412026/kemtchop/products/mn80qhghwphlwghpwnol.jpg",
+      category: "Plats Locaux",
+      complements: "Bâton de manioc,Manioc vapeur,Plantain frit",
+    }
+  }
+];
+
 export default function HomeScreen() {
   const router = useRouter();
   
   const [reels, setReels] = useState<any[]>([]);
-  const [catalogueProducts, setCatalogueProducts] = useState<CatalogueProduct[]>([]);
+  const [catalogueProducts, setCatalogueProducts] = useState<CatalogueProduct[]>(INITIAL_TOP_DISHES);
   const [offers, setOffers] = useState<MappedOffer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [dimension, setDimension] = useState<OfferDimension>("🔥 À réserver");
@@ -95,8 +148,21 @@ export default function HomeScreen() {
 
   const businessTodayStr = useMemo(() => getBusinessTodayString(), []);
 
+  // ⚡ Charger le cache local immédiatement
+  useEffect(() => {
+    AsyncStorage.getItem('cached_catalogue_products').then((stored) => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCatalogueProducts(parsed);
+          }
+        } catch (e) {}
+      }
+    });
+  }, []);
+
   const refreshData = useCallback(async (forcedCity?: { id: number; name: string }) => {
-    setLoading(true);
     setError(null);
     try {
       // ✅ Récupérer la ville stockée ou passée en argument direct
@@ -171,6 +237,9 @@ export default function HomeScreen() {
         };
       });
       setCatalogueProducts(mappedCatalogue);
+      if (mappedCatalogue.length > 0) {
+        AsyncStorage.setItem('cached_catalogue_products', JSON.stringify(mappedCatalogue)).catch(() => {});
+      }
 
       // Mappage des offres (pour "Menu du Jour")
       const safeOffers = Array.isArray(rawOffers) ? rawOffers : [];

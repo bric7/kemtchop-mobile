@@ -233,6 +233,9 @@ export default function DailyOfferGrid({
       contentContainerStyle={styles.listContent}
       columnWrapperStyle={styles.row}
       ListHeaderComponent={renderCustomHeader}
+      initialNumToRender={2}
+      maxToRenderPerBatch={2}
+      windowSize={3}
       refreshControl={
         <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor="#F59E0B" />
       }

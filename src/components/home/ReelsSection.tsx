@@ -265,7 +265,7 @@ export default function ReelsSection({ reels, getMediaUrl, onOrder }: ReelsSecti
                   contentFit="cover"
                   cachePolicy="memory-disk"
                   transition={150}
-                  priority={index < 3 ? "high" : "low"}
+                  priority="low"
                 />
 
                 {/* Badge Prix en haut à gauche */}

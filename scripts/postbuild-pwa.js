@@ -10,6 +10,12 @@ if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf-8');
 
   const pwaTags = `
+    <!-- Resource Hints for High Performance -->
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+    <link rel="preconnect" href="https://api.kemtchop.shop" crossorigin />
+    <link rel="dns-prefetch" href="https://api.kemtchop.shop" />
+
     <!-- PWA Configuration KemTchop -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/favicon.png" />
