@@ -71,7 +71,7 @@ export default function ReelsScreen() {
         setLoading(true);
         setError(null);
 
-        const data = await api.get("/reels/", true);
+        const data = await api.get("/reels/");
         const reelsList: Reel[] = data || [];
 
         setReels(reelsList);
@@ -265,7 +265,7 @@ export default function ReelsScreen() {
           onPress={() => {
             setLoading(true);
             setError(null);
-            api.get("/reels/", true).then((data) => {
+            api.get("/reels/").then((data) => {
               setReels(data || []);
               setLoading(false);
             }).catch(() => {

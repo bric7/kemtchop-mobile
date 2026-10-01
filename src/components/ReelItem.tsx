@@ -73,38 +73,71 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
     }
   });
 
-  // Gestion de la lecture sur Web avec tolérance aux restrictions autoplay des smartphones
+  // Diagnostics exhaustifs et gestion directe de la lecture sur Web
   useEffect(() => {
     if (!isWeb || !hasVideo) return;
     const v = webVideoRef.current;
     if (!v) return;
 
-    v.muted = isMuted;
+    const onCanPlay = () => console.log('✅ [Reel Web] VIDEO CANPLAY:', v.currentSrc);
+    const onPlaying = () => console.log('▶️ [Reel Web] VIDEO PLAYING:', v.currentSrc);
+    const onWaiting = () => console.warn('⏳ [Reel Web] VIDEO WAITING:', v.currentSrc);
+    const onStalled = () => console.warn('⚠️ [Reel Web] VIDEO STALLED:', v.currentSrc);
+    const onError = () => {
+      console.error('❌ [Reel Web] VIDEO ERROR:', {
+        code: v.error?.code,
+        message: v.error?.message,
+        src: v.currentSrc,
+      });
+    };
+    const onLoadedMetadata = async () => {
+      console.log('🎬 [Reel Web] VIDEO READY', {
+        src: v.currentSrc,
+        readyState: v.readyState,
+        networkState: v.networkState,
+        paused: v.paused,
+        duration: v.duration,
+        width: v.videoWidth,
+        height: v.videoHeight,
+      });
 
-    if (isActive) {
-      const playPromise = v.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise
-          .then(() => {
-            setShowPlayOverlay(false);
-          })
-          .catch((err) => {
-            // Si la politique de sécurité du navigateur mobile exige une interaction ou un mode muet strict
-            console.log('[ReelItem Web] Autoplay refusé sans geste utilisateur:', err?.message);
-            if (v) {
-              v.muted = true;
-              setIsMuted(true);
-              v.play().catch(() => {
-                setShowPlayOverlay(true);
-              });
-            }
+      if (isActive) {
+        try {
+          await v.play();
+          console.log('▶️ [Reel Web] PLAY SUCCESS', {
+            paused: v.paused,
+            readyState: v.readyState,
           });
+        } catch (error: any) {
+          console.error('❌ [Reel Web] PLAY FAILED (interaction nécessaire ou autoplay bloqué):', error?.message);
+        }
       }
-    } else {
+    };
+
+    v.addEventListener('canplay', onCanPlay);
+    v.addEventListener('playing', onPlaying);
+    v.addEventListener('waiting', onWaiting);
+    v.addEventListener('stalled', onStalled);
+    v.addEventListener('error', onError);
+    v.addEventListener('loadedmetadata', onLoadedMetadata);
+
+    if (isActive && v.readyState >= 1 && v.paused) {
+      v.play()
+        .then(() => console.log('▶️ [Reel Web] PLAY SUCCESS'))
+        .catch((e) => console.warn('⚠️ [Reel Web] play() direct catch:', e.message));
+    } else if (!isActive && !v.paused) {
       v.pause();
-      setShowPlayOverlay(false);
     }
-  }, [isActive, isWeb, hasVideo, isMuted]);
+
+    return () => {
+      v.removeEventListener('canplay', onCanPlay);
+      v.removeEventListener('playing', onPlaying);
+      v.removeEventListener('waiting', onWaiting);
+      v.removeEventListener('stalled', onStalled);
+      v.removeEventListener('error', onError);
+      v.removeEventListener('loadedmetadata', onLoadedMetadata);
+    };
+  }, [isActive, isWeb, hasVideo, videoUrl]);
 
   // Gestion de la lecture native iOS / Android
   useEffect(() => {
@@ -182,11 +215,7 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
   return (
     <View style={[styles.container, { height: containerHeight }]}>
       {hasVideo ? (
-        <TouchableOpacity 
-          style={styles.media} 
-          activeOpacity={1} 
-          onPress={handleMediaTap}
-        >
+        <View style={styles.media}>
           {/* Fond ambiant flouté */}
           {hasImage && (
             <Image
@@ -198,47 +227,31 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
           )}
           <View style={styles.ambientDarken} />
 
-          {/* Lecteur vidéo Web : Un seul stream actif à la fois (preload=none pour le suivant, image pour les autres) */}
+          {/* Lecteur vidéo Web : Ultra-direct avec controls pour test et diagnostic réel */}
           {isWeb ? (
-            isActive || isNext ? (
-              <video
-                ref={webVideoRef}
-                src={videoUrl}
-                poster={imageUrl}
-                playsInline
-                // @ts-ignore
-                webkit-playsinline="true"
-                autoPlay={isActive}
-                muted={isMuted}
-                loop
-                preload={isActive ? "metadata" : "none"}
-                crossOrigin="anonymous"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  objectFit: fitMode,
-                  backgroundColor: '#000',
-                }}
-                onError={(e) => {
-                  console.warn('[ReelItem Web] Erreur vidéo HTML5:', e);
-                }}
-              />
-            ) : (
-              /* Pour les reels non-adjacents : affiche uniquement l'affiche sans télécharger de flux vidéo */
-              hasImage && (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={styles.centeredImage}
-                  contentFit={fitMode}
-                  cachePolicy="memory-disk"
-                />
-              )
-            )
+            <video
+              ref={webVideoRef}
+              src={videoUrl}
+              poster={imageUrl}
+              controls
+              muted
+              playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
+              preload="auto"
+              style={{
+                width: '100%',
+                height: '100%',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                objectFit: 'cover',
+                backgroundColor: '#000',
+                zIndex: 5,
+              }}
+            />
           ) : (
             isActive && (
               <VideoView
@@ -254,14 +267,7 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
               />
             )
           )}
-
-          {/* Bouton de lecture si le navigateur a bloqué l'autoplay */}
-          {showPlayOverlay && (
-            <View style={styles.playOverlay}>
-              <Play size={44} color="#ffffff" />
-            </View>
-          )}
-        </TouchableOpacity>
+        </View>
       ) : hasImage ? (
         <View style={styles.media}>
           {/* Fond ambiant flouté */}
