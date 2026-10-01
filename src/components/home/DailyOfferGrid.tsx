@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 // ✅ Interface élargie pour accepter à la fois les offres et les produits du catalogue
@@ -79,7 +80,8 @@ export default function DailyOfferGrid({
 
   const renderOfferCard = ({ item }: { item: DailyOfferItem }) => {
     const confirmed = isMenuDuJour(item);
-    const imageUrl = getMediaUrl(item.product?.image_url);
+    const rawImage = item.product?.image_url || (item as any).image_url;
+    const imageUrl = getMediaUrl(rawImage);
     
     // Valeurs par défaut sécurisées pour le catalogue
     const price = Number(item.price_per_unit || item.price) || 2500;
@@ -100,7 +102,13 @@ export default function DailyOfferGrid({
       >
         {/* Image du plat */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.image} 
+            contentFit="cover" 
+            transition={200}
+            cachePolicy="memory-disk"
+          />
           
           {/* Badge statut flottant */}
           <View style={[

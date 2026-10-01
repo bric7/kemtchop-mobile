@@ -131,33 +131,38 @@ export default function HomeScreen() {
 
       // ✅ MAPPAGE STRICT DU CATALOGUE : Neutralisation totale des champs d'offre
       const safeCatalogue = Array.isArray(catalogueData) ? catalogueData : [];
-      const mappedCatalogue: CatalogueProduct[] = safeCatalogue.map((p: any) => ({
-        id: Number(p.id),
-        name: String(p.name || ""),
-        category: String(p.category || "Général"),
-        image_url: String(p.image_url || "https://via.placeholder.com/150"),
-        price: Number(p.price || 2500),
-        complements: String(p.complements || "Standard"),
-        description: String(p.description || ""),
-        
-        // Neutralisation explicite pour empêcher tout rendu de date ou de statut
-        isCatalogueProduct: true,
-        status: "catalogue",
-        target_date: undefined, 
-        is_threshold_reached: false,
-        remaining_to_trigger: 0,
-        reserved_portions: 0,
-        price_per_unit: Number(p.price || 2500),
-        progress_percentage: 0,
-        remaining_capacity: 999,
-        product: {
+      const defaultFoodImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
+      const mappedCatalogue: CatalogueProduct[] = safeCatalogue.map((p: any) => {
+        const rawUrl = p.image_url ? String(p.image_url) : defaultFoodImage;
+        const secureUrl = rawUrl.startsWith("http://") ? "https://" + rawUrl.slice(7) : rawUrl;
+        return {
           id: Number(p.id),
           name: String(p.name || ""),
-          image_url: String(p.image_url || "https://via.placeholder.com/150"),
           category: String(p.category || "Général"),
+          image_url: secureUrl,
+          price: Number(p.price || 2500),
           complements: String(p.complements || "Standard"),
-        }
-      }));
+          description: String(p.description || ""),
+          
+          // Neutralisation explicite pour empêcher tout rendu de date ou de statut
+          isCatalogueProduct: true,
+          status: "catalogue",
+          target_date: undefined, 
+          is_threshold_reached: false,
+          remaining_to_trigger: 0,
+          reserved_portions: 0,
+          price_per_unit: Number(p.price || 2500),
+          progress_percentage: 0,
+          remaining_capacity: 999,
+          product: {
+            id: Number(p.id),
+            name: String(p.name || ""),
+            image_url: secureUrl,
+            category: String(p.category || "Général"),
+            complements: String(p.complements || "Standard"),
+          }
+        };
+      });
       setCatalogueProducts(mappedCatalogue);
 
       // Mappage des offres (pour "Menu du Jour")
@@ -255,8 +260,10 @@ export default function HomeScreen() {
   );
 
   const getSafeMediaUrl = useCallback((url: string | null | undefined) => {
-    if (!url) return "https://via.placeholder.com/150";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    const fallbackFoodImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
+    if (!url || url.includes("via.placeholder.com")) return fallbackFoodImage;
+    if (url.startsWith("http://")) return "https://" + url.slice(7);
+    if (url.startsWith("https://")) return url;
     return `https://api.kemtchop.shop${url.startsWith("/") ? "" : "/"}${url}`;
   }, []);
 

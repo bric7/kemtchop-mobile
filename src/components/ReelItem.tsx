@@ -1,9 +1,10 @@
 // app/components/ReelItem.tsx
-import React, { memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, Platform } from 'react-native';
+import React, { memo, useRef, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
-import { ShoppingBag, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react-native';
+import { ShoppingBag, Volume2, VolumeX, Maximize2, Minimize2, Play } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 interface ReelItemProps {
@@ -40,67 +41,107 @@ interface ReelItemProps {
 }
 
 function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: ReelItemProps) {
-  const [videoError, setVideoError] = React.useState(false);
-  const [isMuted, setIsMuted] = React.useState(true);
-  const [fitMode, setFitMode] = React.useState<'contain' | 'cover'>('contain');
-  const hasVideo = !!item.video_url && item.video_url.startsWith('http') && !videoError;
-  const hasImage = !!item.image_url && item.image_url.startsWith('http');
+  const [videoError, setVideoError] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
+  const [showPlayOverlay, setShowPlayOverlay] = useState(false);
 
-  // Initialisation sécurisée du player (muet par défaut pour autoriser l'autoplay navigateur)
-  const player = useVideoPlayer(hasVideo ? item.video_url! : '', (p) => {
+  // Sécuriser les URL en HTTPS pour éviter les blocages Mixed Content sur navigateurs mobiles
+  const toHttps = (url: string | null | undefined) => {
+    if (!url) return '';
+    return url.startsWith('http://') ? 'https://' + url.slice(7) : url;
+  };
+
+  const videoUrl = toHttps(item.video_url);
+  const imageUrl = toHttps(item.image_url || item.product?.image_url);
+  const hasVideo = !!videoUrl && videoUrl.startsWith('https://') && !videoError;
+  const hasImage = !!imageUrl && imageUrl.startsWith('https://');
+
+  // Référence spécifique pour le lecteur HTML5 natif sur Web / Safari / Chrome mobile
+  const webVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Initialisation du player natif expo-video (pour iOS & Android)
+  const isWeb = Platform.OS === 'web';
+  const player = useVideoPlayer(!isWeb && hasVideo ? videoUrl : '', (p) => {
     try {
       p.loop = true;
       p.muted = true;
       p.volume = 1.0;
     } catch (e) {
-      console.warn('[ReelItem] Erreur init player:', e);
-      setVideoError(true);
+      console.warn('[ReelItem Native] Erreur init player:', e);
     }
   });
 
-  const { isPlaying } = useEvent(player, 'playingChange', {
-    isPlaying: player?.playing ?? false,
-  });
+  // Gestion de la lecture sur Web avec tolérance aux restrictions autoplay des smartphones
+  useEffect(() => {
+    if (!isWeb || !hasVideo) return;
+    const v = webVideoRef.current;
+    if (!v) return;
+
+    v.muted = isMuted;
+
+    if (isActive) {
+      const playPromise = v.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise
+          .then(() => {
+            setShowPlayOverlay(false);
+          })
+          .catch((err) => {
+            // Si la politique de sécurité du navigateur mobile exige une interaction ou un mode muet strict
+            console.log('[ReelItem Web] Autoplay refusé sans geste utilisateur:', err?.message);
+            if (v) {
+              v.muted = true;
+              setIsMuted(true);
+              v.play().catch(() => {
+                setShowPlayOverlay(true);
+              });
+            }
+          });
+      }
+    } else {
+      v.pause();
+      setShowPlayOverlay(false);
+    }
+  }, [isActive, isWeb, hasVideo, isMuted]);
+
+  // Gestion de la lecture native iOS / Android
+  useEffect(() => {
+    if (isWeb || !hasVideo || !player) return;
+    try {
+      if (isActive) {
+        player.play();
+      } else {
+        player.pause();
+      }
+    } catch {}
+  }, [isActive, isWeb, hasVideo, player]);
 
   const toggleMute = () => {
-    if (player) {
-      const nextMuted = !isMuted;
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    if (isWeb && webVideoRef.current) {
+      webVideoRef.current.muted = nextMuted;
+    } else if (player) {
       player.muted = nextMuted;
-      setIsMuted(nextMuted);
+    }
+  };
+
+  const handleMediaTap = () => {
+    if (isWeb && webVideoRef.current) {
+      const v = webVideoRef.current;
+      if (v.paused) {
+        v.play().then(() => setShowPlayOverlay(false)).catch(() => {});
+      } else {
+        v.pause();
+        setShowPlayOverlay(true);
+      }
     }
   };
 
   const toggleFitMode = () => {
     setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
   };
-
-  React.useEffect(() => {
-    if (!hasVideo || !player) return;
-    let isCurrent = true;
-    try {
-      if (isActive) {
-        const promise = player.play();
-        if (promise && typeof promise.catch === 'function') {
-          promise.catch((err: any) => {
-            if (isCurrent && err?.name !== 'AbortError') {
-              console.log('[ReelItem] Autoplay note:', err?.message);
-            }
-          });
-        }
-      } else {
-        player.pause();
-      }
-    } catch (e) {
-      // Silencieux pour éviter de polluer la console
-    }
-
-    return () => {
-      isCurrent = false;
-      try {
-        player.pause();
-      } catch {}
-    };
-  }, [isActive, hasVideo, player]);
 
   // ✅ LOGIQUE MÉTIER BASÉE STRICTEMENT SUR reel_category
   const isTodayOffer = (item.reel_category === "DAILY_MENU" || !!item.daily_offer_id) && 
@@ -125,7 +166,6 @@ function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: Re
     badgeText = "À RÉSERVER";
     descriptiveNote = "🔥 Offre disponible à la réservation";
   } else {
-    // CATALOG_PRODUCT ou sans offre active aujourd'hui
     actionLabel = "Réserver";
     buttonStyle = styles.btnPending;
     iconColor = "#0f172a";
@@ -141,48 +181,89 @@ function ReelItemComponent({ item, isActive, containerHeight, onPressOrder }: Re
   return (
     <View style={[styles.container, { height: containerHeight }]}>
       {hasVideo ? (
-        <View style={styles.media}>
-          {/* Fond ambiant flouté pour combler harmonieusement le cadre rectangulaire */}
+        <TouchableOpacity 
+          style={styles.media} 
+          activeOpacity={1} 
+          onPress={handleMediaTap}
+        >
+          {/* Fond ambiant flouté */}
           {hasImage && (
             <Image
-              source={{ uri: item.image_url! }}
+              source={{ uri: imageUrl }}
               style={styles.ambientImage}
               blurRadius={Platform.OS === 'web' ? 25 : 20}
-              resizeMode="cover"
+              contentFit="cover"
             />
           )}
           <View style={styles.ambientDarken} />
 
-          {/* Lecteur vidéo centré avec largeur/hauteur 100% explicite */}
-          <VideoView
-            player={player}
-            style={styles.videoPlayer}
-            contentFit={fitMode}
-            nativeControls={false}
-            allowsFullscreen={false}
-            allowsPictureInPicture={false}
-            onError={() => {
-              console.warn('[ReelItem] Erreur VideoView');
-              setVideoError(true);
-            }}
-          />
-        </View>
+          {/* Lecteur vidéo Web (HTML5 direct avec playsinline pour iOS Safari & Android Chrome) */}
+          {isWeb ? (
+            <video
+              ref={webVideoRef}
+              src={videoUrl}
+              playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
+              autoPlay={isActive}
+              muted={isMuted}
+              loop
+              preload="metadata"
+              crossOrigin="anonymous"
+              style={{
+                width: '100%',
+                height: '100%',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                objectFit: fitMode,
+                backgroundColor: '#000',
+              }}
+              onError={(e) => {
+                console.warn('[ReelItem Web] Erreur vidéo HTML5:', e);
+              }}
+            />
+          ) : (
+            <VideoView
+              player={player}
+              style={styles.videoPlayer}
+              contentFit={fitMode}
+              nativeControls={false}
+              allowsFullscreen={false}
+              allowsPictureInPicture={false}
+              onError={() => {
+                console.warn('[ReelItem Native] Erreur VideoView');
+              }}
+            />
+          )}
+
+          {/* Bouton de lecture si le navigateur a bloqué l'autoplay */}
+          {showPlayOverlay && (
+            <View style={styles.playOverlay}>
+              <Play size={44} color="#ffffff" />
+            </View>
+          )}
+        </TouchableOpacity>
       ) : hasImage ? (
         <View style={styles.media}>
           {/* Fond ambiant flouté */}
           <Image
-            source={{ uri: item.image_url! }}
+            source={{ uri: imageUrl }}
             style={styles.ambientImage}
             blurRadius={Platform.OS === 'web' ? 25 : 20}
-            resizeMode="cover"
+            contentFit="cover"
           />
           <View style={styles.ambientDarken} />
 
           {/* Image principale centrée */}
           <Image
-            source={{ uri: item.image_url! }}
+            source={{ uri: imageUrl }}
             style={styles.centeredImage}
-            resizeMode={fitMode}
+            contentFit={fitMode}
+            transition={200}
+            cachePolicy="memory-disk"
           />
         </View>
       ) : (
@@ -419,6 +500,13 @@ const styles = StyleSheet.create({
   },
   btnPending: {
     backgroundColor: '#F59E0B',
+  },
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 5,
   },
   orderButtonText: {
     fontSize: 16,

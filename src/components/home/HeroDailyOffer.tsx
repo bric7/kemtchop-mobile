@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 interface HeroOffer {
@@ -8,6 +9,7 @@ interface HeroOffer {
     name: string;
     image_url?: string;
   };
+  image_url?: string;
   target_date: string;
   status: string;
   reserved_portions: number;
@@ -50,7 +52,8 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
   const confirmed = ['confirmed', 'cooking', 'ready', 'delivering', 'delivered'].includes(
     offer.status?.toLowerCase()
   );
-  const imageUrl = getMediaUrl(offer.product?.image_url);
+  const rawImage = offer.product?.image_url || offer.image_url;
+  const imageUrl = getMediaUrl(rawImage);
   const price = Number(offer.price_per_unit) || 2500;
   const progress = Number(offer.progress_percentage) || 0;
 
@@ -61,7 +64,13 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
       activeOpacity={0.9}
     >
       {/* Image de fond */}
-      <Image source={{ uri: imageUrl }} style={styles.backgroundImage} resizeMode="cover" />
+      <Image 
+        source={{ uri: imageUrl }} 
+        style={styles.backgroundImage} 
+        contentFit="cover" 
+        transition={200}
+        cachePolicy="memory-disk"
+      />
       
       {/* Overlay gradient */}
       <View style={styles.overlay} />

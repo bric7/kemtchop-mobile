@@ -2,13 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-  Image,
   Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 
 export const ProductCard = ({
   item,
@@ -56,10 +56,19 @@ export const ProductCard = ({
     });
   };
 
+  const rawUrl = item.image_url || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
+  const secureImageUrl = rawUrl.startsWith("http://") ? "https://" + rawUrl.slice(7) : rawUrl;
+
   return (
     <View style={styles.card}>
       {/* 1. IMAGE DU PRODUIT */}
-      <Image source={{ uri: item.image_url }} style={styles.image} />
+      <Image 
+        source={{ uri: secureImageUrl }} 
+        style={styles.image} 
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
+      />
 
       {/* 2. BADGE PARTAGER (Toujours visible pour le test) */}
       <TouchableOpacity
