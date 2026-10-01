@@ -57,8 +57,8 @@ const filesToEnsure = ['manifest.json', 'sw.js', 'icon-192.png', 'icon-512.png',
 filesToEnsure.forEach((file) => {
   const src = path.join(publicDir, file);
   const dest = path.join(distPath, file);
-  if (fs.existsSync(src) && !fs.existsSync(dest)) {
+  if (fs.existsSync(src)) {
     fs.copyFileSync(src, dest);
-    console.log(`✅ [postbuild-pwa] Copié ${file} vers dist/`);
+    console.log(`✅ [postbuild-pwa] Copié ${file} vers dist/ (mis à jour)`);
   }
 });
