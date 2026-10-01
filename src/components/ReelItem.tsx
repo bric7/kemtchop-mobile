@@ -227,31 +227,42 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
           )}
           <View style={styles.ambientDarken} />
 
-          {/* Lecteur vidéo Web : Ultra-direct avec controls pour test et diagnostic réel */}
+          {/* Lecteur vidéo Web : Règle stricte (Actif = auto, Suivant = metadata, Autres = poster uniquement) */}
           {isWeb ? (
-            <video
-              ref={webVideoRef}
-              src={videoUrl}
-              poster={imageUrl}
-              controls
-              muted
-              playsInline
-              // @ts-ignore
-              webkit-playsinline="true"
-              preload="auto"
-              style={{
-                width: '100%',
-                height: '100%',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                objectFit: 'cover',
-                backgroundColor: '#000',
-                zIndex: 5,
-              }}
-            />
+            isActive || isNext ? (
+              <video
+                ref={webVideoRef}
+                src={videoUrl}
+                poster={imageUrl}
+                controls
+                muted
+                playsInline
+                // @ts-ignore
+                webkit-playsinline="true"
+                preload={isActive ? "auto" : "metadata"}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  objectFit: 'cover',
+                  backgroundColor: '#000',
+                  zIndex: 5,
+                }}
+              />
+            ) : (
+              hasImage && (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.centeredImage}
+                  contentFit={fitMode}
+                  cachePolicy="memory-disk"
+                />
+              )
+            )
           ) : (
             isActive && (
               <VideoView

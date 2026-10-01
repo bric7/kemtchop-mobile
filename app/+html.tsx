@@ -34,20 +34,24 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="application-name" content="KemTchop" />
         <meta name="description" content="Commandez et réservez vos grillades et plats camerounais en ligne" />
 
-        {/* Service Worker Registration */}
+        {/* Diagnostic Mode: Désenregistrement actif du Service Worker et vidage de CacheStorage */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(reg) {
-                      console.log('[KemTchop PWA] Service Worker actif:', reg.scope);
-                    },
-                    function(err) {
-                      console.log('[KemTchop PWA] Service Worker non enregistré:', err);
-                    }
-                  );
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var r of regs) {
+                    r.unregister();
+                    console.log('[Diagnostic] SW désenregistré:', r.scope);
+                  }
+                });
+              }
+              if ('caches' in window) {
+                caches.keys().then(function(keys) {
+                  for (var k of keys) {
+                    caches.delete(k);
+                    console.log('[Diagnostic] CacheStorage purgé:', k);
+                  }
                 });
               }
             `,
