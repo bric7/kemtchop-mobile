@@ -9,25 +9,30 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  console.log('[KEMTCHOP-SW-v11] Installation et pré-cache des assets statiques...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Pré-cache partiel:', err);
+        console.warn('[KEMTCHOP-SW-v11] Pré-cache partiel:', err);
       });
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('[KEMTCHOP-SW-v11] Activation en cours et nettoyage des anciens caches...');
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => {
-          console.log('[SW] Suppression ancien cache:', key);
+          console.log('[KEMTCHOP-SW-v11] Suppression ancien cache:', key);
           return caches.delete(key);
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[KEMTCHOP-SW-v11] Service Worker activé et contrôle de tous les clients pris !');
+      return self.clients.claim();
+    })
   );
 });
 

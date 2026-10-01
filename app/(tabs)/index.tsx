@@ -121,14 +121,20 @@ export default function HomeScreen() {
 
       const cityId = currentCity ? currentCity.id : null;
 
-      // ✅ Charger 3 sources de données en parallèle
-      const [reelsData, catalogueData, rawOffers] = await Promise.all([
-        api.get("/reels/").catch(() => []),
+      // 🎬 Charger les reels en arrière-plan sans bloquer l'affichage du catalogue
+      api.get("/reels/")
+        .then((reelsData) => {
+          setReels(Array.isArray(reelsData) ? reelsData : []);
+        })
+        .catch(() => {
+          setReels([]);
+        });
+
+      // ⚡ Charger le catalogue et les offres en priorité (réponse rapide ~350ms)
+      const [catalogueData, rawOffers] = await Promise.all([
         api.get("/products/catalogue").catch(() => []),
         api.get(cityId ? `/offers/upcoming?days=7&city_id=${cityId}` : "/offers/upcoming?days=7").catch(() => []),
       ]);
-
-      setReels(Array.isArray(reelsData) ? reelsData : []);
 
       // ✅ MAPPAGE STRICT DU CATALOGUE : Neutralisation totale des champs d'offre
       const safeCatalogue = Array.isArray(catalogueData) ? catalogueData : [];
