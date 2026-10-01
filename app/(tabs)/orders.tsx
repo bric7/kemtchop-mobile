@@ -84,90 +84,153 @@ export default function OrdersScreen() {
 
   const renderOrderItem = ({ item }: any) => {
     const currentStep = getStatusStep(item.status);
+    const isFailed = (item.status || "").toUpperCase() === "DELIVERY_FAILED";
+    const isCancelled = (item.status || "").toUpperCase() === "CANCELLED";
+    const rawBalance = item.balance_due !== undefined ? item.balance_due : (item.total_amount * 0.6);
+    const isFullyPaid = item.financial_status === 'FULLY_PAID' || rawBalance <= 0;
+    const paidAmount = item.confirmed_paid_amount || (item.total_amount - rawBalance);
 
     return (
       <View style={styles.orderCard}>
         <View style={styles.orderHeader}>
-          <Text style={styles.productName}>{item.product_name}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.productName}>{item.product_name || "Plat KemTchop"}</Text>
+            <Text style={{ fontSize: 11, color: "#888", fontWeight: "600", marginTop: 2 }}>
+              {item.portions || 1} portion(s) • {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString('fr-FR') : "Aujourd'hui"}
+            </Text>
+          </View>
           <Text style={styles.orderId}>#{item.id.substring(0, 8)}</Text>
         </View>
 
         {/* TIMELINE DE SUIVI DYNAMIQUE */}
-        <View style={styles.timelineContainer}>
-          <View style={styles.timelineLine} />
-          <View style={styles.stepsRow}>
-            {/* Étape 1 : Acompte / En attente */}
-            <View
-              style={[styles.stepDot, currentStep >= 1 && styles.activeDot]}
-            >
-              <Text
-                style={[
-                  styles.stepLabel,
-                  currentStep >= 1 && styles.activeLabel,
-                ]}
+        {!isFailed && !isCancelled ? (
+          <View style={styles.timelineContainer}>
+            <View style={styles.timelineLine} />
+            <View style={styles.stepsRow}>
+              {/* Étape 1 : Acompte / En attente */}
+              <View
+                style={[styles.stepDot, currentStep >= 1 && styles.activeDot]}
               >
-                Acompte
-              </Text>
-            </View>
-            {/* Étape 2 : Cuisine */}
-            <View
-              style={[styles.stepDot, currentStep >= 2 && styles.activeDot]}
-            >
-              <Text
-                style={[
-                  styles.stepLabel,
-                  currentStep >= 2 && styles.activeLabel,
-                ]}
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    currentStep >= 1 && styles.activeLabel,
+                  ]}
+                >
+                  Acompte
+                </Text>
+              </View>
+              {/* Étape 2 : Cuisine */}
+              <View
+                style={[styles.stepDot, currentStep >= 2 && styles.activeDot]}
               >
-                Cuisine
-              </Text>
-            </View>
-            {/* Étape 3 : Livraison */}
-            <View
-              style={[styles.stepDot, currentStep >= 3 && styles.activeDot]}
-            >
-              <Text
-                style={[
-                  styles.stepLabel,
-                  currentStep >= 3 && styles.activeLabel,
-                ]}
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    currentStep >= 2 && styles.activeLabel,
+                  ]}
+                >
+                  Cuisine
+                </Text>
+              </View>
+              {/* Étape 3 : Livraison */}
+              <View
+                style={[styles.stepDot, currentStep >= 3 && styles.activeDot]}
               >
-                Livraison
-              </Text>
-            </View>
-            {/* Étape 4 : Terminé */}
-            <View
-              style={[styles.stepDot, currentStep >= 4 && styles.activeDot]}
-            >
-              <Text
-                style={[
-                  styles.stepLabel,
-                  currentStep >= 4 && styles.activeLabel,
-                ]}
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    currentStep >= 3 && styles.activeLabel,
+                  ]}
+                >
+                  Livraison
+                </Text>
+              </View>
+              {/* Étape 4 : Terminé */}
+              <View
+                style={[styles.stepDot, currentStep >= 4 && styles.activeDot]}
               >
-                Terminé
-              </Text>
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    currentStep >= 4 && styles.activeLabel,
+                  ]}
+                >
+                  Terminé
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <View style={{
+            backgroundColor: isFailed ? "#FFF5F5" : "#F8F9FA",
+            padding: 12,
+            borderRadius: 14,
+            marginVertical: 10,
+            borderWidth: 1,
+            borderColor: isFailed ? "#FEB2B2" : "#E2E8F0"
+          }}>
+            <Text style={{
+              fontWeight: "900",
+              fontSize: 12,
+              color: isFailed ? "#C53030" : "#4A5568",
+              textTransform: "uppercase"
+            }}>
+              {isFailed ? "⚠️ Incident de Livraison Signalé" : "🚫 Commande Annulée"}
+            </Text>
+            {item.delivery_failure_reason && (
+              <Text style={{ fontSize: 11, color: "#742A2A", marginTop: 2, fontWeight: "600" }}>
+                Motif : {item.delivery_failure_reason}
+              </Text>
+            )}
+            <Text style={{ fontSize: 10, color: "#A0AEC0", marginTop: 4 }}>
+              {isFailed
+                ? "L'équipe logistique vous recontacte pour réorganiser la remise."
+                : "Cette commande a été annulée."}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.orderDetails}>
           <View style={styles.row}>
-            <Text style={styles.detailText}>💰 Reste à payer:</Text>
+            <Text style={styles.detailText}>Total commande:</Text>
             <Text style={styles.priceHighlight}>
-              {item.total_amount - (item.deposit_amount || 0)} FCFA
+              {(item.total_amount || 0).toLocaleString()} FCFA
             </Text>
           </View>
+
+          <View style={[styles.row, { marginTop: 4 }]}>
+            <Text style={styles.detailTextSmall}>
+              💰 Acompte payé (40%): {Math.round(paidAmount).toLocaleString()} FCFA
+            </Text>
+            <Text style={{
+              fontSize: 12,
+              fontWeight: "bold",
+              color: isFullyPaid ? "#38A169" : "#E53E3E"
+            }}>
+              {isFullyPaid
+                ? "✅ Solde Réglé"
+                : `Solde à payer: ${Math.round(rawBalance).toLocaleString()} F`}
+            </Text>
+          </View>
+
+          {item.assigned_driver_name && (
+            <Text style={[styles.detailTextSmall, { color: "#2B6CB0", fontWeight: "700", marginTop: 6 }]}>
+              🛵 Livreur: {item.assigned_driver_name}
+            </Text>
+          )}
+
           <Text style={styles.detailTextSmall}>
-            📍 Destination: {item.zone}
+            📍 Destination: {item.zone || "Douala / Yaoundé"}
           </Text>
+
           <Text
             style={[
               styles.statusBadge,
-              { color: currentStep >= 2 ? "#E31C25" : "#666" },
+              { color: isFailed ? "#E53E3E" : currentStep >= 2 ? "#E31C25" : "#666" },
             ]}
           >
-            Statut actuel: {item.status.replace("_", " ").toUpperCase()}
+            Statut actuel: {item.status ? item.status.replace(/_/g, " ").toUpperCase() : "EN COURS"}
           </Text>
         </View>
       </View>
