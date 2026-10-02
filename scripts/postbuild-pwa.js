@@ -59,11 +59,16 @@ if (fs.existsSync(indexPath)) {
 
   if (!html.includes('manifest.json')) {
     html = html.replace('</head>', `${pwaTags}\n</head>`);
-    fs.writeFileSync(indexPath, html, 'utf-8');
-    console.log('✅ [postbuild-pwa] Manifest et Service Worker injectés avec succès dans dist/index.html !');
-  } else {
-    console.log('ℹ️ [postbuild-pwa] Manifest déjà présent dans dist/index.html.');
   }
+  // Garantir interactive-widget=resizes-content pour le clavier Android
+  if (html.includes('shrink-to-fit=no') && !html.includes('interactive-widget')) {
+    html = html.replace(
+      'content="width=device-width, initial-scale=1, shrink-to-fit=no"',
+      'content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover, interactive-widget=resizes-content"'
+    );
+  }
+  fs.writeFileSync(indexPath, html, 'utf-8');
+  console.log('✅ [postbuild-pwa] Manifest, Service Worker et Viewport Android injectés avec succès !');
 } else {
   console.warn('⚠️ [postbuild-pwa] dist/index.html non trouvé !');
 }

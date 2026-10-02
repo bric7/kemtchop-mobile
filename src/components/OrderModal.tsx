@@ -243,7 +243,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           <View style={styles.indicator} />
           <Text style={styles.title}>{productName || "Plat"}</Text>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* ✅ Masque complètement le sélecteur de date si isCatalogueProduct === false */}
             {isCatalogueProduct ? (
               <View style={styles.dateSelectorContainer}>
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   timeChipActive: { backgroundColor: "#E31C25" },
   timeChipText: { fontSize: 13, fontWeight: "700", color: "#64748b" },
   timeChipTextActive: { color: "white" },
-  input: { width: "100%", backgroundColor: "#f9f9f9", borderRadius: 12, padding: 15, marginBottom: 10, borderWidth: 1, borderColor: "#eee", fontWeight: "bold" },
+  input: { width: "100%", backgroundColor: "#f9f9f9", borderRadius: 12, padding: 15, marginBottom: 10, borderWidth: 1, borderColor: "#eee", fontWeight: "bold", fontSize: 16 },
   deliveryPriceInfo: { backgroundColor: "#f0fdf4", padding: 10, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: "#bbf7d0" },
   deliveryPriceText: { fontSize: 12, fontWeight: "600", color: "#166534" },
   wrapRow: { flexDirection: "row", flexWrap: "wrap" },

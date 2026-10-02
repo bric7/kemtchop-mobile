@@ -124,7 +124,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <ProfileHeader
           userName={userName}
           userPhone={userPhone}
@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
     borderColor: "#DDD",
     paddingHorizontal: 15,
     fontWeight: "bold",
+    fontSize: 16,
     color: "#E31C25",
   },
   btnOk: {
