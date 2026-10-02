@@ -31,6 +31,8 @@ export default function SetupPasswordScreen() {
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async () => {
+    if (loading) return;
+
     // Validation locale
     if (!token) {
       setError("Lien invalide (token manquant).");

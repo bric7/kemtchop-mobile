@@ -165,6 +165,8 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const deposit = Math.round(finalTotal * 0.4);
 
   const handleValidation = async () => {
+    if (loading) return;
+
     if (!complement) {
       Alert.alert("Choix obligatoire", "Veuillez sélectionner un accompagnement.");
       return;
@@ -328,7 +330,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.payButton} onPress={handleValidation} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.payButton, loading && { opacity: 0.6 }]}
+              onPress={handleValidation}
+              disabled={loading}
+            >
               <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${deposit.toLocaleString()} F)`}</Text>
             </TouchableOpacity>
 

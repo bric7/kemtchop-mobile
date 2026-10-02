@@ -27,43 +27,47 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!name || !phone || !password || !confirmPassword) {
-      Alert.alert("Erreur", "Remplis tous les champs, champion !");
+    if (loading) return;
+
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedName || !trimmedPhone || !password || !confirmPassword) {
+      setErrorMessage("Veuillez remplir tous les champs.");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Attention", "Les mots de passe ne correspondent pas.");
+      setErrorMessage("Les mots de passe ne correspondent pas.");
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert(
-        "Sécurité",
-        "Le mot de passe doit faire au moins 6 caractères.",
-      );
+      setErrorMessage("Le mot de passe doit faire au moins 6 caractères.");
       return;
     }
 
     setLoading(true);
+    setErrorMessage("");
+
     try {
-      // ✅ Appel propre vers Fly.io
       const result = await apiFetch("/users/register", {
         method: "POST",
         body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
+          name: trimmedName,
+          phone: trimmedPhone,
           password,
         }),
       });
 
       if (result.status === "success") {
         const sessionData: [string, string][] = [
-          ["user_phone", phone.trim()],
-          ["user_name", name.trim()],
+          ["user_phone", trimmedPhone],
+          ["user_name", trimmedName],
         ];
         if (result.access_token) {
           sessionData.push(["access_token", result.access_token]);
@@ -77,13 +81,17 @@ export default function RegisterScreen() {
 
         await AsyncStorage.multiSet(sessionData);
 
-        Alert.alert("Bienvenue ! 🎉", "Ton compte Kemtchop est prêt.", [
-          { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
-        ]);
+        if (Platform.OS === "web") {
+          router.replace("/(tabs)");
+        } else {
+          Alert.alert("Bienvenue ! 🎉", "Ton compte Kemtchop est prêt.", [
+            { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
+          ]);
+        }
       }
     } catch (error: any) {
       console.error("❌ Erreur inscription:", error);
-      Alert.alert("Erreur", error.message || "Inscription échouée");
+      setErrorMessage(error.message || "Inscription échouée. Veuillez réessayer.");
     } finally {
       setLoading(false);
     }
@@ -109,7 +117,10 @@ export default function RegisterScreen() {
               style={styles.input}
               placeholder="Nom complet"
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                setName(text);
+                if (errorMessage) setErrorMessage("");
+              }}
               autoCorrect={false}
             />
 
@@ -118,7 +129,10 @@ export default function RegisterScreen() {
               placeholder="Numéro de téléphone"
               keyboardType="phone-pad"
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(text) => {
+                setPhone(text);
+                if (errorMessage) setErrorMessage("");
+              }}
             />
 
             {/* Champ Mot de passe avec Œil */}
@@ -128,7 +142,10 @@ export default function RegisterScreen() {
                 placeholder="Mot de passe"
                 secureTextEntry={!showPassword}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage("");
+                }}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -148,11 +165,21 @@ export default function RegisterScreen() {
               placeholder="Confirmer le mot de passe"
               secureTextEntry={!showPassword}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (errorMessage) setErrorMessage("");
+              }}
             />
 
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color="#E31C25" />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              style={[styles.button, loading && { opacity: 0.7 }]}
+              style={[styles.button, loading && { opacity: 0.6 }]}
               onPress={handleRegister}
               disabled={loading}
             >
@@ -227,4 +254,22 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F5",
+    borderColor: "#FEB2B2",
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    color: "#E31C25",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
 });

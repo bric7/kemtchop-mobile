@@ -1,20 +1,21 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-// --- AJOUT DE L'IMPORT POUR LE STOCKAGE ---
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { apiFetch } from "../config/api";
 
 const CITIES = {
   Yaoundé: [
@@ -42,46 +43,52 @@ export default function AddressesScreen() {
   const [neighborhood, setNeighborhood] = useState("");
   const [details, setDetails] = useState("");
   const [label, setLabel] = useState("Maison");
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // --- TA FONCTION MISE À JOUR (SYNCHRONISÉE) ---
   const handleSave = async () => {
-    if (!neighborhood || !details) {
-      Alert.alert(
-        "Erreur",
-        "Veuillez préciser le quartier et les détails (repères).",
-      );
+    if (loading) return;
+
+    const trimmedNeighborhood = neighborhood.trim();
+    const trimmedDetails = details.trim();
+
+    if (!trimmedNeighborhood || !trimmedDetails) {
+      setErrorMessage("Veuillez préciser le quartier et les détails (repères).");
       return;
     }
+
+    setLoading(true);
+    setErrorMessage("");
 
     try {
       const phone = await AsyncStorage.getItem("user_phone");
       if (!phone) {
-        Alert.alert("Erreur", "Utilisateur non identifié. Connectez-vous.");
+        setErrorMessage("Utilisateur non identifié. Veuillez vous connecter.");
         return;
       }
 
-      // Simulation de l'appel API vers ton FastAPI
-      const response = await fetch("http://127.0.0.1:8000/users/add-address", {
+      await apiFetch("/users/add-address", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone: phone,
+          phone: phone.trim(),
           city: city,
-          neighborhood: neighborhood,
-          details: details,
+          neighborhood: trimmedNeighborhood,
+          details: trimmedDetails,
           label: label,
         }),
-      });
+      }, true);
 
-      if (response.ok) {
-        Alert.alert("Succès", "Adresse de livraison enregistrée ! ✅");
+      Alert.alert("Succès", "Adresse de livraison enregistrée ! ✅", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+      if (Platform.OS === "web") {
         router.back();
-      } else {
-        Alert.alert("Erreur", "Le serveur n'a pas pu enregistrer l'adresse.");
       }
-    } catch (error) {
-      console.log("Erreur Save Address:", error);
-      Alert.alert("Erreur réseau", "Impossible de joindre le serveur.");
+    } catch (error: any) {
+      console.error("Erreur Save Address:", error);
+      setErrorMessage(error.message || "Impossible d'enregistrer l'adresse.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,7 +142,10 @@ export default function AddressesScreen() {
               style={styles.input}
               placeholder="Ex: Bastos, Akwa..."
               value={neighborhood}
-              onChangeText={setNeighborhood}
+              onChangeText={(text) => {
+                setNeighborhood(text);
+                if (errorMessage) setErrorMessage("");
+              }}
             />
           </View>
 
@@ -147,7 +157,10 @@ export default function AddressesScreen() {
               multiline
               numberOfLines={3}
               value={details}
-              onChangeText={setDetails}
+              onChangeText={(text) => {
+                setDetails(text);
+                if (errorMessage) setErrorMessage("");
+              }}
             />
           </View>
 
@@ -182,8 +195,23 @@ export default function AddressesScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>Enregistrer l'adresse</Text>
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={18} color="#E31C25" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            style={[styles.saveBtn, loading && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveBtnText}>Enregistrer l'adresse</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -255,8 +283,26 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 15,
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 25,
     elevation: 5,
   },
   saveBtnText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F5",
+    borderColor: "#FEB2B2",
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 20,
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    color: "#E31C25",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
 });

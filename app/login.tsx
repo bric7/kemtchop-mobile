@@ -26,45 +26,61 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
 
-  // ❌ SUPPRIMÉ : const SERVER_IP = "127.0.0.1";
-
   const handleLogin = async () => {
-    if (!phone || !password) {
-      Alert.alert("Erreur", "Remplis ton numéro et ton mot de passe.");
+    if (loading) return;
+
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone || !password) {
+      setErrorMessage("Remplis ton numéro et ton mot de passe.");
       return;
     }
 
     setLoading(true);
+    setErrorMessage("");
+
     try {
-      // ✅ Utilise apiFetch au lieu de fetch local
       const data = await apiFetch("/users/login", {
         method: "POST",
         body: JSON.stringify({
-          phone: phone.trim(),
+          phone: trimmedPhone,
           password: password,
         }),
       });
 
       await AsyncStorage.multiSet([
         ["access_token", data.access_token],
-        ["user_phone", phone.trim()],
-        ["user_name", data.user_name],
-        ["is_affiliate", String(data.is_affiliate)],
+        ["user_phone", trimmedPhone],
+        ["user_name", data.user_name || ""],
+        ["is_affiliate", String(data.is_affiliate ?? false)],
       ]);
 
       console.log("✅ Connexion réussie pour:", data.user_name);
 
-      Alert.alert("Succès", `Content de vous revoir, ${data.user_name} !`, [
-        { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
-      ]);
+      if (Platform.OS === "web") {
+        router.replace("/(tabs)");
+      } else {
+        Alert.alert("Succès", `Content de vous revoir, ${data.user_name || "cher client"} !`, [
+          { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
+        ]);
+      }
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Erreur",
-        error.message || "Le serveur KEMTCHOP est injoignable.",
-      );
+      console.error("Erreur login:", error);
+      const msg = error.message || "";
+      if (
+        msg.includes("401") ||
+        msg.toLowerCase().includes("identifiant") ||
+        msg.toLowerCase().includes("incorrect") ||
+        msg.toLowerCase().includes("unauthorized")
+      ) {
+        setErrorMessage(
+          "Numéro ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire ci-dessous."
+        );
+      } else {
+        setErrorMessage(msg || "Le serveur KEMTCHOP est injoignable.");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +113,10 @@ export default function LoginScreen() {
               placeholder="Numéro de téléphone"
               keyboardType="phone-pad"
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(text) => {
+                setPhone(text);
+                if (errorMessage) setErrorMessage("");
+              }}
               autoCapitalize="none"
             />
 
@@ -108,7 +127,10 @@ export default function LoginScreen() {
                 placeholder="Mot de passe"
                 secureTextEntry={!showPassword}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage("");
+                }}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -122,8 +144,15 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color="#E31C25" />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-              style={[styles.button, loading && { opacity: 0.7 }]}
+              style={[styles.button, loading && { opacity: 0.6 }]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -220,5 +249,23 @@ const styles = StyleSheet.create({
   linkText: {
     color: "#666",
     textDecorationLine: "underline",
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F5",
+    borderColor: "#FEB2B2",
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 15,
+    gap: 10,
+  },
+  errorText: {
+    flex: 1,
+    color: "#E31C25",
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
   },
 });
