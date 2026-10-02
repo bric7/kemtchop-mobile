@@ -34,24 +34,33 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="application-name" content="KemTchop" />
         <meta name="description" content="Commandez et réservez vos grillades et plats camerounais en ligne" />
 
-        {/* Diagnostic Mode: Désenregistrement actif du Service Worker et vidage de CacheStorage */}
+        {/* PWA & Service Worker Registration + Early beforeinstallprompt Capture */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Capture précoce de l'événement PWA avant le montage de React
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.deferredPWAPrompt = e;
+                window.dispatchEvent(new Event('pwa-prompt-ready'));
+                console.log('[KemTchop PWA] beforeinstallprompt capturé sur window');
+              });
+
+              window.addEventListener('appinstalled', function() {
+                console.log('[KemTchop PWA] Application installée avec succès !');
+                window.deferredPWAPrompt = null;
+              });
+
               if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function(regs) {
-                  for (var r of regs) {
-                    r.unregister();
-                    console.log('[Diagnostic] SW désenregistré:', r.scope);
-                  }
-                });
-              }
-              if ('caches' in window) {
-                caches.keys().then(function(keys) {
-                  for (var k of keys) {
-                    caches.delete(k);
-                    console.log('[Diagnostic] CacheStorage purgé:', k);
-                  }
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(reg) {
+                      console.log('[KemTchop PWA] Service Worker actif:', reg.scope);
+                    },
+                    function(err) {
+                      console.warn('[KemTchop PWA] Service Worker non enregistré:', err);
+                    }
+                  );
                 });
               }
             `,

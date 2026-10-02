@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
-import { Download, X, Share, PlusSquare, Smartphone } from 'lucide-react-native';
+import { Download, X, Share, PlusSquare, Smartphone, MoreVertical, CheckCircle2 } from 'lucide-react-native';
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -8,6 +8,7 @@ export default function PWAInstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [visible, setVisible] = useState(false);
   const [iosModalVisible, setIosModalVisible] = useState(false);
+  const [fallbackModalVisible, setFallbackModalVisible] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -31,26 +32,54 @@ export default function PWAInstallPrompt() {
     const isDismissed = sessionStorage.getItem('kemtchop_pwa_dismissed');
     if (isDismissed) return;
 
-    // 4. Capturer l'événement natif d'installation sur Android / Chrome
+    // 4. Récupérer l'événement global s'il a déjà été capturé au boot
+    if ((window as any).deferredPWAPrompt) {
+      console.log('[PWA Component] deferredPWAPrompt trouvé sur window au montage');
+      setDeferredPrompt((window as any).deferredPWAPrompt);
+      setVisible(true);
+    }
+
+    // 5. Écouter l'événement natif direct ou l'événement personnalisé
     const handleBeforeInstall = (e: any) => {
       e.preventDefault();
+      (window as any).deferredPWAPrompt = e;
       setDeferredPrompt(e);
       setVisible(true);
+      console.log('[PWA Component] beforeinstallprompt intercepté dans le composant');
+    };
+
+    const handlePromptReady = () => {
+      if ((window as any).deferredPWAPrompt) {
+        setDeferredPrompt((window as any).deferredPWAPrompt);
+        setVisible(true);
+        console.log('[PWA Component] pwa-prompt-ready reçu');
+      }
+    };
+
+    const handleAppInstalled = () => {
+      console.log('[PWA Component] appinstalled détecté, masquage du prompt');
+      setVisible(false);
+      setIsStandalone(true);
+      setDeferredPrompt(null);
+      (window as any).deferredPWAPrompt = null;
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Si on est sur iOS, afficher la bannière après un court délai pour guider l'utilisateur
-    let iosTimer: any = null;
-    if (isIosDevice && !standaloneMode) {
-      iosTimer = setTimeout(() => {
+    // Afficher la bannière après un court délai pour guider l'utilisateur
+    const timer = setTimeout(() => {
+      if (!standaloneMode) {
         setVisible(true);
-      }, 1500);
-    }
+      }
+    }, 1500);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-      if (iosTimer) clearTimeout(iosTimer);
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -60,21 +89,33 @@ export default function PWAInstallPrompt() {
       return;
     }
 
-    if (deferredPrompt) {
+    const promptEvent = deferredPrompt || (typeof window !== 'undefined' ? (window as any).deferredPWAPrompt : null);
+
+    if (promptEvent) {
       try {
-        await deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
-        if (choice.outcome === 'accepted') {
-          console.log('[PWA] Installation acceptée par l’utilisateur');
+        console.log('[PWA] Appel de promptEvent.prompt()...');
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        console.log('[PWA] Résultat userChoice:', choice);
+
+        if (choice && choice.outcome === 'accepted') {
+          console.log('[PWA] Installation confirmée par l’utilisateur');
           setVisible(false);
+        } else {
+          console.log('[PWA] Installation annulée par l’utilisateur');
         }
+
         setDeferredPrompt(null);
+        if (typeof window !== 'undefined') {
+          (window as any).deferredPWAPrompt = null;
+        }
       } catch (e) {
-        console.warn('[PWA] Erreur prompt:', e);
+        console.warn('[PWA] Erreur lors du prompt natif, ouverture guide secours:', e);
+        setFallbackModalVisible(true);
       }
     } else {
-      // Fallback explicite
-      alert("Pour installer KemTchop : ouvrez le menu du navigateur (⋮ en haut à droite) et choisissez 'Ajouter à l'écran d'accueil'.");
+      console.log('[PWA] Aucun événement natif disponible, ouverture guide secours');
+      setFallbackModalVisible(true);
     }
   };
 
@@ -180,6 +221,75 @@ export default function PWAInstallPrompt() {
               style={styles.modalCloseButton}
               onPress={() => {
                 setIosModalVisible(false);
+                handleDismiss();
+              }}
+            >
+              <Text style={styles.modalCloseButtonText}>J'ai compris</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🤖 Modal d'instructions pour Android Chrome (Secours garanti) */}
+      <Modal
+        visible={fallbackModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFallbackModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📲 Installer sur Android</Text>
+              <TouchableOpacity onPress={() => setFallbackModalVisible(false)}>
+                <X size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalInstructionIntro}>
+              Ajoutez KemTchop à votre écran d'accueil en 3 clics rapides :
+            </Text>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <MoreVertical size={20} color="#E31C25" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 1</Text>
+                <Text style={styles.stepText}>
+                  Appuyez sur le menu <Text style={styles.boldText}>⋮ (3 points)</Text> en haut à droite de Google Chrome.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <Download size={20} color="#E31C25" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 2</Text>
+                <Text style={styles.stepText}>
+                  Sélectionnez <Text style={styles.boldText}>« Installer l'application »</Text> (ou « Ajouter à l'écran d'accueil »).
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <CheckCircle2 size={20} color="#10B981" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 3</Text>
+                <Text style={styles.stepText}>
+                  Appuyez sur <Text style={styles.boldText}>« Installer »</Text> dans la confirmation Android. C'est prêt !
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => {
+                setFallbackModalVisible(false);
                 handleDismiss();
               }}
             >
