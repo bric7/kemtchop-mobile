@@ -65,3 +65,17 @@ export const truncate = (text: string, maxLength: number): string => {
   if (!text || text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';
 };
+
+/**
+ * Formate un nombre avec séparateur de milliers (sans devise).
+ * Fallback sûr si toLocaleString() crash (certains Android WebView).
+ * Ex: 1500 → "1 500"
+ */
+export const safeFormatNumber = (n: number | null | undefined): string => {
+  const value = n ?? 0;
+  try {
+    return value.toLocaleString('fr-FR');
+  } catch {
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+};

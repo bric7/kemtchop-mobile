@@ -2,7 +2,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -17,6 +16,8 @@ import {
 } from "react-native";
 import { apiFetch } from "../../config/api";
 import ErrorBoundary from "./ErrorBoundary";
+import { showAlert } from "../utils/platform";
+import { safeFormatNumber } from "../utils/format";
 
 // ✅ GÉNÉRATEUR DE DATES BLINDÉ (Fuseau horaire Afrique/Douala)
 const generateNext7Days = (): { date: string; label: string }[] => {
@@ -176,24 +177,15 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const finalTotal = totalPrice + deliveryPrice;
   const deposit = Math.round(finalTotal * 0.4);
 
-  // ✅ Formatage sûr (toLocaleString peut crasher sur certains Android WebView)
-  const safeFormat = (n: number): string => {
-    try {
-      return n.toLocaleString("fr-FR");
-    } catch {
-      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    }
-  };
-
   const handleValidation = async () => {
     if (loading) return;
 
     if (!complement) {
-      Alert.alert("Choix obligatoire", "Veuillez sélectionner un accompagnement.");
+      showAlert("Choix obligatoire", "Veuillez sélectionner un accompagnement.");
       return;
     }
     if (!userZone || !phone) {
-      Alert.alert("Oups !", "Veuillez remplir votre quartier et votre numéro de téléphone.");
+      showAlert("Oups !", "Veuillez remplir votre quartier et votre numéro de téléphone.");
       return;
     }
 
@@ -227,31 +219,31 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       }, true);
 
       if (campayResult.payment_url && campayResult.payment_url.includes("mock")) {
-        Alert.alert("💳 Simulation de Paiement", `Commande créée !\n\nAcompte simulé : ${deposit} FCFA`, [
+        showAlert("💳 Simulation de Paiement", `Commande créée !\n\nAcompte simulé : ${deposit} FCFA`, [
           { text: "Annuler", style: "cancel", onPress: onClose },
           {
             text: "✅ Confirmer le paiement",
             onPress: async () => {
               try {
                 await apiFetch("/payments/simulate-success", { method: "POST", body: JSON.stringify({ order_id: orderResult.order_id }) }, true);
-                Alert.alert("Succès", "Paiement simulé réussi !");
+                showAlert("Succès", "Paiement simulé réussi !");
                 onConfirm();
                 onClose();
               } catch (error: any) {
-                Alert.alert("Erreur", "Échec simulation : " + error.message);
+                showAlert("Erreur", "Échec simulation : " + error.message);
               }
             },
           },
         ]);
       } else {
-        Alert.alert("Paiement requis 💳", `Veuillez payer l'acompte de ${campayResult.deposit_amount || deposit} FCFA.`, [
+        showAlert("Paiement requis 💳", `Veuillez payer l'acompte de ${campayResult.deposit_amount || deposit} FCFA.`, [
           { text: "Payer maintenant", onPress: () => { Linking.openURL(campayResult.payment_url); onConfirm(); } },
           { text: "Annuler", style: "cancel", onPress: onClose },
         ]);
       }
     } catch (error: any) {
       console.error("❌ Erreur:", error);
-      Alert.alert("Erreur", error.message || "Une erreur est survenue.");
+      showAlert("Erreur", error.message || "Une erreur est survenue.");
     } finally {
       setLoading(false);
     }
@@ -357,7 +349,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               onPress={handleValidation}
               disabled={loading}
             >
-              <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${safeFormat(deposit)} F)`}</Text>
+              <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${safeFormatNumber(deposit)} F)`}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>

@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { api } from "../../config/api";
+import { safeFormatNumber } from "@/utils/format";
 
 // Interface pour typer tes commandes venant de FastAPI
 interface Order {
@@ -124,7 +125,7 @@ export default function AmbassadorDashboard() {
         <View style={styles.earningsCard}>
           <Text style={styles.earningsLabel}>Ma Commission Totale</Text>
           <Text style={styles.earningsValue}>
-            {totalCommission.toLocaleString()} FCFA
+            {safeFormatNumber(totalCommission)} FCFA
           </Text>
           <View style={styles.badgePromo}>
             <Text style={styles.badgeText}>Taux : 15%</Text>

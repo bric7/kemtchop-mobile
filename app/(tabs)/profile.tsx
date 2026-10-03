@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Linking,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { showAlert } from "@/utils/platform";
 
 import AffiliateMenu from "@/component/AffiliateMenu";
 import AffiliateWallet from "@/component/AffiliateWallet";
@@ -70,7 +70,7 @@ export default function ProfileScreen() {
   // --- LOGIQUE DE SAUVEGARDE MANUELLE ---
   const handleSaveManualCode = async () => {
     if (!manualRef.trim()) {
-      Alert.alert("Attention", "Veuillez entrer un code.");
+      showAlert("Attention", "Veuillez entrer un code.");
       return;
     }
     try {
@@ -79,13 +79,13 @@ export default function ProfileScreen() {
         "active_affiliate_code",
         manualRef.trim().toUpperCase(),
       );
-      Alert.alert(
+      showAlert(
         "Succès",
         `Le code ${manualRef.toUpperCase()} est activé pour vos prochains Kemit !`,
       );
       setManualRef(""); // On vide le champ
     } catch (e) {
-      Alert.alert("Erreur", "Impossible de sauvegarder le code.");
+      showAlert("Erreur", "Impossible de sauvegarder le code.");
     }
   };
 
@@ -105,12 +105,12 @@ export default function ProfileScreen() {
         }
       })
       .catch(() => {
-        Alert.alert("Erreur", "Impossible d'ouvrir WhatsApp.");
+        showAlert("Erreur", "Impossible d'ouvrir WhatsApp.");
       });
   };
 
   const handleLogout = () => {
-    Alert.alert("Déconnexion", "Voulez-vous sortir ?", [
+    showAlert("Déconnexion", "Voulez-vous sortir ?", [
       { text: "Non", style: "cancel" },
       {
         text: "Oui",

@@ -1,5 +1,6 @@
 // app/components/home/ReelsSection.tsx
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { safeFormatNumber } from '@/utils/format';
 import {
   View,
   Text,
@@ -270,7 +271,7 @@ export default function ReelsSection({ reels, getMediaUrl, onOrder }: ReelsSecti
 
                 {/* Badge Prix en haut à gauche */}
                 <View style={styles.priceBadge}>
-                  <Text style={styles.priceBadgeText}>{price.toLocaleString('fr-FR')} F</Text>
+                  <Text style={styles.priceBadgeText}>{safeFormatNumber(price)} F</Text>
                 </View>
 
                 {/* Badge Statut en haut à droite : À RÉSERVER ou MENU DU JOUR */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { safeFormatNumber } from '@/utils/format';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -125,7 +126,7 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
           <View>
             <Text style={styles.priceLabel}>Prix par portion</Text>
             <Text style={styles.price}>
-              {price.toLocaleString()} F
+              {safeFormatNumber(price)} F
             </Text>
           </View>
           <TouchableOpacity 

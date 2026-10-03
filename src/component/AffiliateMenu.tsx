@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router"; // Import nécessaire pour la navigation
 import React from "react";
 import { Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { safeFormatNumber } from "@/utils/format";
 
 interface AffiliateMenuProps {
   isAffiliate: boolean;
@@ -70,7 +71,7 @@ const AffiliateMenu: React.FC<AffiliateMenuProps> = ({
             <View style={styles.textContainer}>
               <Text style={styles.menuText}>Mes Performances</Text>
               <Text style={styles.menuSubText}>
-                Gains cumulés : {totalEarned.toLocaleString()} FCFA
+                Gains cumulés : {safeFormatNumber(totalEarned)} FCFA
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#ccc" />

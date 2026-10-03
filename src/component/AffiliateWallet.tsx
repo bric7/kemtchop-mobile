@@ -1,5 +1,7 @@
 import React from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { safeFormatNumber } from "@/utils/format";
+import { showAlert } from "@/utils/platform";
 
 interface AffiliateWalletProps {
   // On ajoute un "?" pour dire que la valeur peut être absente au début
@@ -12,14 +14,14 @@ const AffiliateWallet: React.FC<AffiliateWalletProps> = ({
   const handleWithdrawRequest = () => {
     // On sécurise aussi ici
     const amount = pendingCommissions || 0;
-    Alert.alert(
+    showAlert(
       "Demande de retrait",
-      `Voulez-vous retirer vos ${amount.toLocaleString()} FCFA ?`,
+      `Voulez-vous retirer vos ${safeFormatNumber(amount)} FCFA ?`,
       [
         { text: "Annuler", style: "cancel" },
         {
           text: "Confirmer",
-          onPress: () => Alert.alert("Succès", "Demande envoyée !"),
+          onPress: () => showAlert("Succès", "Demande envoyée !"),
         },
       ],
     );
@@ -31,7 +33,7 @@ const AffiliateWallet: React.FC<AffiliateWalletProps> = ({
         <Text style={styles.walletLabel}>SOLDE DISPONIBLE</Text>
         {/* On s'assure que pendingCommissions existe avant d'appeler toLocaleString */}
         <Text style={styles.walletAmount}>
-          {(pendingCommissions || 0).toLocaleString()} F
+          {safeFormatNumber(pendingCommissions)} F
         </Text>
       </View>
 

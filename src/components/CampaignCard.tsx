@@ -1,6 +1,7 @@
 // app/components/CampaignCard.tsx
 // 🍲 Carte Vivante KemTchop - Cycle complet de la marmite
 import React, { memo } from 'react';
+import { safeFormatNumber } from '@/utils/format';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Campaign } from '../../types/collective_pot';
@@ -129,7 +130,7 @@ export const CampaignCard = memo(function CampaignCard({ campaign, onPress }: Ca
             )}
             {state === 'to_fund' && campaign.remaining_amount > 0 && (
               <Text style={styles.remainingAmountText}>
-                Ou financez directement : <Text style={styles.remainingBold}>{campaign.remaining_amount.toLocaleString()} FCFA</Text>
+                Ou financez directement : <Text style={styles.remainingBold}>{safeFormatNumber(campaign.remaining_amount)} FCFA</Text>
               </Text>
             )}
             {state === 'funded' && (
@@ -155,7 +156,7 @@ export const CampaignCard = memo(function CampaignCard({ campaign, onPress }: Ca
           <View>
             <Text style={styles.priceLabel}>{config.priceLabel}</Text>
             <Text style={styles.price}>
-              {campaign.display_price.toLocaleString()} FCFA
+              {safeFormatNumber(campaign.display_price)} FCFA
             </Text>
           </View>
           <Text style={styles.date}>

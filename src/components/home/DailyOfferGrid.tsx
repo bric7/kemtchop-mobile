@@ -1,4 +1,5 @@
 import React from 'react';
+import { safeFormatNumber } from '@/utils/format';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -184,7 +185,7 @@ export default function DailyOfferGrid({
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Prix portion</Text>
             <Text style={styles.price}>
-              {price.toLocaleString('fr-FR')} F
+              {safeFormatNumber(price)} F
             </Text>
           </View>
           

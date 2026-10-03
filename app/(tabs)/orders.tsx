@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { safeFormatNumber } from "@/utils/format";
 import { api } from "../../config/api";
 
 export default function OrdersScreen() {
@@ -195,13 +196,13 @@ export default function OrdersScreen() {
           <View style={styles.row}>
             <Text style={styles.detailText}>Total commande:</Text>
             <Text style={styles.priceHighlight}>
-              {(item.total_amount || 0).toLocaleString()} FCFA
+              {safeFormatNumber(item.total_amount)} FCFA
             </Text>
           </View>
 
           <View style={[styles.row, { marginTop: 4 }]}>
             <Text style={styles.detailTextSmall}>
-              💰 Acompte payé (40%): {Math.round(paidAmount).toLocaleString()} FCFA
+              💰 Acompte payé (40%): {safeFormatNumber(Math.round(paidAmount))} FCFA
             </Text>
             <Text style={{
               fontSize: 12,
@@ -210,7 +211,7 @@ export default function OrdersScreen() {
             }}>
               {isFullyPaid
                 ? "✅ Solde Réglé"
-                : `Solde à payer: ${Math.round(rawBalance).toLocaleString()} F`}
+                : `Solde à payer: ${safeFormatNumber(Math.round(rawBalance))} F`}
             </Text>
           </View>
 
