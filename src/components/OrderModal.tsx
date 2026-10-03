@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { apiFetch } from "../../config/api";
+import ErrorBoundary from "./ErrorBoundary";
 
 // ✅ GÉNÉRATEUR DE DATES BLINDÉ (Fuseau horaire Afrique/Douala)
 const generateNext7Days = (): { date: string; label: string }[] => {
@@ -112,15 +113,26 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   useEffect(() => {
     if (visible) {
-      AsyncStorage.getItem("user_phone").then((p) => p && setPhone(p));
-      AsyncStorage.getItem("selected_city").then((c) => {
-        if (c) setSelectedCity(JSON.parse(c));
-      });
-      loadDeliveryZones();
-      setComplement("");
-      setPortions(1);
-      setSelectedDateIndex(0);
-      if (isCatalogueProduct) loadExistingOffers();
+      try {
+        AsyncStorage.getItem("user_phone").then((p) => p && setPhone(p)).catch(() => {});
+        AsyncStorage.getItem("selected_city").then((c) => {
+          if (c) {
+            try {
+              setSelectedCity(JSON.parse(c));
+            } catch (e) {
+              console.warn("⚠️ selected_city invalide dans AsyncStorage:", e);
+              setSelectedCity(null);
+            }
+          }
+        }).catch(() => {});
+        loadDeliveryZones();
+        setComplement("");
+        setPortions(1);
+        setSelectedDateIndex(0);
+        if (isCatalogueProduct) loadExistingOffers();
+      } catch (e) {
+        console.error("🔴 Erreur initialisation OrderModal:", e);
+      }
     }
   }, [visible, item?.id]);
 
@@ -163,6 +175,15 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const deliveryPrice = calculateDeliveryPrice();
   const finalTotal = totalPrice + deliveryPrice;
   const deposit = Math.round(finalTotal * 0.4);
+
+  // ✅ Formatage sûr (toLocaleString peut crasher sur certains Android WebView)
+  const safeFormat = (n: number): string => {
+    try {
+      return n.toLocaleString("fr-FR");
+    } catch {
+      return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+  };
 
   const handleValidation = async () => {
     if (loading) return;
@@ -240,6 +261,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   return (
     <Modal visible={visible} transparent animationType="slide">
+      <ErrorBoundary fallbackMessage="Erreur lors du chargement de la commande" onReset={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.indicator} />
@@ -335,7 +357,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               onPress={handleValidation}
               disabled={loading}
             >
-              <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${deposit.toLocaleString()} F)`}</Text>
+              <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${safeFormat(deposit)} F)`}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
@@ -344,6 +366,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      </ErrorBoundary>
     </Modal>
   );
 };
