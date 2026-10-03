@@ -208,38 +208,30 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
       if (!orderResult.order_id) throw new Error("Échec création commande");
 
-      const campayResult = await apiFetch("/payments/campay/init", {
+      // ✅ SebPay : le backend calcule lui-même l'acompte de 40 % à partir du TOTAL
+      const paymentResult = await apiFetch("/payments/sebpay/init", {
         method: "POST",
         body: JSON.stringify({
           order_id: orderResult.order_id,
-          amount: deposit,
+          amount: finalTotal,
           phone: phone.trim(),
           description: `Acompte 40% - ${productName} (${portions} portions)`,
         }),
       }, true);
 
-      if (campayResult.payment_url && campayResult.payment_url.includes("mock")) {
-        showAlert("💳 Simulation de Paiement", `Commande créée !\n\nAcompte simulé : ${deposit} FCFA`, [
+      const paidDeposit = paymentResult.deposit_amount || deposit;
+
+      if (paymentResult.payment_url) {
+        showAlert("Paiement requis 💳", `Veuillez payer l'acompte de ${paidDeposit} FCFA.`, [
           { text: "Annuler", style: "cancel", onPress: onClose },
-          {
-            text: "✅ Confirmer le paiement",
-            onPress: async () => {
-              try {
-                await apiFetch("/payments/simulate-success", { method: "POST", body: JSON.stringify({ order_id: orderResult.order_id }) }, true);
-                showAlert("Succès", "Paiement simulé réussi !");
-                onConfirm();
-                onClose();
-              } catch (error: any) {
-                showAlert("Erreur", "Échec simulation : " + error.message);
-              }
-            },
-          },
+          { text: "Payer maintenant", onPress: () => { Linking.openURL(paymentResult.payment_url); onConfirm(); } },
         ]);
       } else {
-        showAlert("Paiement requis 💳", `Veuillez payer l'acompte de ${campayResult.deposit_amount || deposit} FCFA.`, [
-          { text: "Payer maintenant", onPress: () => { Linking.openURL(campayResult.payment_url); onConfirm(); } },
-          { text: "Annuler", style: "cancel", onPress: onClose },
-        ]);
+        showAlert(
+          "Validez le paiement 📱",
+          `${paymentResult.message || `Une demande de ${paidDeposit} FCFA a été envoyée à votre téléphone.`}\n\nConfirmez avec votre code secret Mobile Money.`,
+          [{ text: "OK", onPress: () => { onConfirm(); onClose(); } }]
+        );
       }
     } catch (error: any) {
       console.error("❌ Erreur:", error);
