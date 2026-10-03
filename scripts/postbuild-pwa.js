@@ -67,6 +67,11 @@ if (fs.existsSync(indexPath)) {
       'content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover, interactive-widget=resizes-content"'
     );
   }
+  // Langue FR + blocage de la traduction auto (elle casse le DOM React : erreur insertBefore)
+  html = html.replace(/<html[^>]*>/, '<html lang="fr" translate="no" class="notranslate">');
+  if (!html.includes('name="google"')) {
+    html = html.replace('</head>', '<meta name="google" content="notranslate" />\n</head>');
+  }
   fs.writeFileSync(indexPath, html, 'utf-8');
   console.log('✅ [postbuild-pwa] Manifest, Service Worker et Viewport Android injectés avec succès !');
 } else {

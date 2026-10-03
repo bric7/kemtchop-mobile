@@ -288,7 +288,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </View>
             ) : null}
 
-            <Text style={styles.label}>🍽️ Nombre de portions ({pricePerUnit} FCFA/portion) :</Text>
+            <Text style={styles.label}>{`🍽️ Nombre de portions (${pricePerUnit} FCFA/portion) :`}</Text>
             <View style={styles.counterContainer}>
               <TouchableOpacity style={[styles.counterBtn, portions <= 1 && styles.counterBtnDisabled]} onPress={() => portions > 1 && setPortions(portions - 1)} disabled={portions <= 1}>
                 <Text style={styles.counterBtnText}>−</Text>
@@ -311,7 +311,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             <Text style={styles.label}>📍 Votre quartier :</Text>
             <TextInput placeholder="Ex: Bastos, Bonapriso..." style={styles.input} value={userZone} onChangeText={setUserZone} />
             <View style={styles.deliveryPriceInfo}>
-              <Text style={styles.deliveryPriceText}>🚚 Livraison : {deliveryPrice} FCFA</Text>
+              <Text style={styles.deliveryPriceText}>{`🚚 Livraison : ${deliveryPrice} FCFA`}</Text>
             </View>
 
             <Text style={styles.label}>🥘 Accompagnement <Text style={styles.requiredText}>*</Text> :</Text>
@@ -334,13 +334,13 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             <TextInput placeholder="Ex: 670040405" style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
 
             <View style={styles.priceContainer}>
-              <View style={styles.priceLine}><Text style={styles.priceLabel}>Repas ({portions} portion{portions > 1 ? "s" : ""})</Text><Text style={styles.priceValue}>{totalPrice} FCFA</Text></View>
-              <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{deliveryPrice} FCFA</Text></View>
-              <View style={styles.totalLine}><Text style={styles.totalLabel}>TOTAL</Text><Text style={styles.totalValue}>{finalTotal} FCFA</Text></View>
+              <View style={styles.priceLine}><Text style={styles.priceLabel}>{`Repas (${portions} portion${portions > 1 ? "s" : ""})`}</Text><Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text></View>
+              <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
+              <View style={styles.totalLine}><Text style={styles.totalLabel}>TOTAL</Text><Text style={styles.totalValue}>{`${finalTotal} FCFA`}</Text></View>
               <View style={styles.depositBox}>
                 <Text style={styles.depositText}>ACOMPTE 40% À PAYER</Text>
-                <Text style={styles.depositAmount}>{deposit} FCFA</Text>
-                <Text style={styles.remainingText}>Solde à la livraison : {finalTotal - deposit} FCFA</Text>
+                <Text style={styles.depositAmount}>{`${deposit} FCFA`}</Text>
+                <Text style={styles.remainingText}>{`Solde à la livraison : ${finalTotal - deposit} FCFA`}</Text>
               </View>
             </View>
 

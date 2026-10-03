@@ -6,9 +6,10 @@ import { type PropsWithChildren } from 'react';
  */
 export default function Root({ children }: PropsWithChildren) {
   return (
-    <html lang="fr">
+    <html lang="fr" translate="no" className="notranslate">
       <head>
         <meta charSet="utf-8" />
+        <meta name="google" content="notranslate" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
