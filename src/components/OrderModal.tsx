@@ -229,13 +229,16 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       } else {
         showAlert(
           "Validez le paiement 📱",
-          `${paymentResult.message || `Une demande de ${paidDeposit} FCFA a été envoyée à votre téléphone.`}\n\nConfirmez avec votre code secret Mobile Money.`,
-          [{ text: "OK", onPress: () => { onConfirm(); onClose(); } }]
+          `${paymentResult.message || `Une demande de ${paidDeposit} FCFA a été envoyée sur votre téléphone.`}\n\n⚠️ Important : Votre solde Mobile Money doit être supérieur à ${paidDeposit} FCFA.\n\nValidez avec votre code PIN secret sur votre téléphone.`,
+          [{ text: "J'ai validé", onPress: () => { onConfirm(); onClose(); } }]
         );
       }
     } catch (error: any) {
       console.error("❌ Erreur:", error);
-      showAlert("Erreur", error.message || "Une erreur est survenue.");
+      showAlert(
+        "Erreur de paiement",
+        `${error.message || "Une erreur est survenue."}\n\n💡 Conseil : Assurez-vous que votre compte Orange Money ou MTN MoMo est actif et que votre solde est supérieur au montant de l'acompte.`
+      );
     } finally {
       setLoading(false);
     }
@@ -322,8 +325,9 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             </View>
             {!complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
 
-            <Text style={styles.label}>📱 Numéro WhatsApp :</Text>
-            <TextInput placeholder="Ex: 670040405" style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+            <Text style={styles.label}>📱 Numéro Mobile Money (Orange ou MTN) :</Text>
+            <TextInput placeholder="Ex: 697000000 ou 670000000" style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+            <Text style={styles.phoneHint}>Ce numéro recevra la demande de débit Mobile Money.</Text>
 
             <View style={styles.priceContainer}>
               <View style={styles.priceLine}><Text style={styles.priceLabel}>{`Repas (${portions} portion${portions > 1 ? "s" : ""})`}</Text><Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text></View>
@@ -333,6 +337,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                 <Text style={styles.depositText}>ACOMPTE 40% À PAYER</Text>
                 <Text style={styles.depositAmount}>{`${deposit} FCFA`}</Text>
                 <Text style={styles.remainingText}>{`Solde à la livraison : ${finalTotal - deposit} FCFA`}</Text>
+                <View style={styles.balanceNotice}>
+                  <Text style={styles.balanceNoticeText}>
+                    {`⚠️ Solde requis : Votre compte Orange Money ou MTN MoMo doit avoir au moins ${safeFormatNumber(deposit)} FCFA pour valider ce paiement.`}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -408,6 +417,9 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: "#999", fontWeight: "bold" },
   lockedDateContainer: { backgroundColor: "#fef2f2", padding: 12, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: "#fecaca" },
   lockedDateText: { fontSize: 13, fontWeight: "600", color: "#991b1b", textAlign: "center" },
+  phoneHint: { fontSize: 11, color: "#64748b", marginTop: -6, marginBottom: 12, fontStyle: "italic" },
+  balanceNotice: { marginTop: 10, width: "100%", paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#fffbeb", borderRadius: 10, borderWidth: 1, borderColor: "#fef3c7" },
+  balanceNoticeText: { fontSize: 11, color: "#92400e", fontWeight: "600", textAlign: "center", lineHeight: 16 },
 });
 
 export default OrderModal;
