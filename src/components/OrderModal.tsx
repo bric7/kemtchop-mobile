@@ -89,6 +89,8 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedCity, setSelectedCity] = useState<any | null>(null);
+  const [customizationNote, setCustomizationNote] = useState("");
+  const [showCustomization, setShowCustomization] = useState(false);
 
   const productName = isCatalogueProduct ? item?.name : item?.product?.name;
   const pricePerUnit = isCatalogueProduct ? (item?.price || 2500) : (item?.price_per_unit || 0);
@@ -199,6 +201,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           portions,
           delivery_zone: userZone.trim(),
           complement,
+          customization_note: customizationNote.trim() ? customizationNote.trim() : null,
           delivery_time: deliveryTime,
           phone: phone.trim(),
           affiliate_code: null,
@@ -325,6 +328,46 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             </View>
             {!complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
 
+            {/* ✨ PRÉFÉRENCE DE PRÉPARATION (OPTIONNEL & PLIABLE) */}
+            <View style={styles.customizationSection}>
+              <TouchableOpacity
+                style={styles.customizationToggleBtn}
+                onPress={() => setShowCustomization(!showCustomization)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.customizationToggleText}>
+                  {showCustomization ? "▼ ✨ Préférence de préparation" : "▶ ✨ Ajouter une préférence de préparation (optionnel)"}
+                </Text>
+              </TouchableOpacity>
+
+              {showCustomization && (
+                <View style={styles.customizationBox}>
+                  <Text style={styles.customizationTitle}>Comment souhaitez-vous votre plat ?</Text>
+                  <Text style={styles.customizationDisclaimer}>
+                    ✨ Nous ferons notre possible pour respecter votre demande.
+                  </Text>
+                  <TextInput
+                    placeholder="Ex: un peu de sel, peu de cube, pas trop d'huile..."
+                    placeholderTextColor="#94a3b8"
+                    style={styles.customizationInput}
+                    value={customizationNote}
+                    onChangeText={setCustomizationNote}
+                    maxLength={300}
+                    multiline
+                    numberOfLines={2}
+                  />
+                  <View style={styles.charCounterRow}>
+                    <Text style={styles.charCounterText}>{customizationNote.length}/300 caractères</Text>
+                    {customizationNote.trim().length > 0 && (
+                      <TouchableOpacity onPress={() => setCustomizationNote("")}>
+                        <Text style={styles.clearNoteText}>Effacer</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+
             <Text style={styles.label}>📱 Numéro Mobile Money (Orange ou MTN) :</Text>
             <TextInput placeholder="Ex: 697000000 ou 670000000" style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
             <Text style={styles.phoneHint}>Ce numéro recevra la demande de débit Mobile Money.</Text>
@@ -332,6 +375,12 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             <View style={styles.priceContainer}>
               <View style={styles.priceLine}><Text style={styles.priceLabel}>{`Repas (${portions} portion${portions > 1 ? "s" : ""})`}</Text><Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text></View>
               <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
+              {customizationNote.trim().length > 0 && (
+                <View style={styles.recapCustomizationLine}>
+                  <Text style={styles.recapCustomizationLabel}>✨ Préférence :</Text>
+                  <Text style={styles.recapCustomizationValue} numberOfLines={2}>« {customizationNote.trim()} »</Text>
+                </View>
+              )}
               <View style={styles.totalLine}><Text style={styles.totalLabel}>TOTAL</Text><Text style={styles.totalValue}>{`${finalTotal} FCFA`}</Text></View>
               <View style={styles.depositBox}>
                 <Text style={styles.depositText}>ACOMPTE 40% À PAYER</Text>
@@ -420,6 +469,19 @@ const styles = StyleSheet.create({
   phoneHint: { fontSize: 11, color: "#64748b", marginTop: -6, marginBottom: 12, fontStyle: "italic" },
   balanceNotice: { marginTop: 10, width: "100%", paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#fffbeb", borderRadius: 10, borderWidth: 1, borderColor: "#fef3c7" },
   balanceNoticeText: { fontSize: 11, color: "#92400e", fontWeight: "600", textAlign: "center", lineHeight: 16 },
+  customizationSection: { width: "100%", marginVertical: 8 },
+  customizationToggleBtn: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "#f8fafc", borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0" },
+  customizationToggleText: { fontSize: 12, fontWeight: "700", color: "#475569" },
+  customizationBox: { marginTop: 8, padding: 12, backgroundColor: "#fffbeb", borderRadius: 12, borderWidth: 1, borderColor: "#fef3c7" },
+  customizationTitle: { fontSize: 13, fontWeight: "800", color: "#92400e", marginBottom: 2 },
+  customizationDisclaimer: { fontSize: 11, color: "#b45309", marginBottom: 8, fontStyle: "italic" },
+  customizationInput: { backgroundColor: "#ffffff", borderRadius: 8, padding: 10, borderWidth: 1, borderColor: "#fde68a", fontSize: 13, color: "#1e293b", minHeight: 48, textAlignVertical: "top" },
+  charCounterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  charCounterText: { fontSize: 10, color: "#94a3b8" },
+  clearNoteText: { fontSize: 11, color: "#ef4444", fontWeight: "700" },
+  recapCustomizationLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: "#fffbeb", borderRadius: 6 },
+  recapCustomizationLabel: { fontSize: 11, fontWeight: "800", color: "#92400e" },
+  recapCustomizationValue: { fontSize: 11, fontStyle: "italic", color: "#78350f", flex: 1, textAlign: "right", marginLeft: 8 },
 });
 
 export default OrderModal;

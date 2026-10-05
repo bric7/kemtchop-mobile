@@ -99,6 +99,12 @@ export default function OrdersScreen() {
             <Text style={{ fontSize: 11, color: "#888", fontWeight: "600", marginTop: 2 }}>
               {item.portions || 1} portion(s) • {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString('fr-FR') : "Aujourd'hui"}
             </Text>
+            {item.customization_note ? (
+              <View style={styles.customizationBadge}>
+                <Text style={styles.customizationBadgeTitle}>✨ Préférence demandée :</Text>
+                <Text style={styles.customizationBadgeContent}>« {item.customization_note} »</Text>
+              </View>
+            ) : null}
           </View>
           <Text style={styles.orderId}>#{item.id.substring(0, 8)}</Text>
         </View>
@@ -395,5 +401,26 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 10,
     textAlign: "right",
+  },
+  customizationBadge: {
+    backgroundColor: "#fffbeb",
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  customizationBadgeTitle: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#92400e",
+    textTransform: "uppercase",
+  },
+  customizationBadgeContent: {
+    fontSize: 11,
+    fontStyle: "italic",
+    color: "#78350f",
+    marginTop: 1,
   },
 });
