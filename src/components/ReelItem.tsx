@@ -33,6 +33,7 @@ interface ReelItemProps {
     type?: 'offer' | 'product';
     item_type?: string;
     reel_category?: 'DAILY_MENU' | 'FUTURE_RESERVATION' | 'CATALOG_PRODUCT';
+    can_order_today?: boolean;
     sides?: string[];
   };
   isActive: boolean;
@@ -207,28 +208,22 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
     setFitMode((prev) => (prev === 'contain' ? 'cover' : 'contain'));
   };
 
-  // ✅ LOGIQUE MÉTIER BASÉE STRICTEMENT SUR reel_category
-  const isTodayOffer = (item.reel_category === "DAILY_MENU" || !!item.daily_offer_id) && 
-                       (item.is_threshold_reached || ['confirmed', 'cooking', 'ready', 'delivering'].includes(String(item.status || '').toLowerCase()));
-  
+  // ✅ LOGIQUE MÉTIER BASÉE STRICTEMENT SUR can_order_today ET reel_category
+  const canOrderToday = Boolean(item.can_order_today) || 
+                        (item.reel_category === "DAILY_MENU" && (item.is_threshold_reached || ['confirmed', 'cooking', 'ready', 'delivering'].includes(String(item.status || '').toLowerCase())));
+
   let actionLabel = "Réserver";
   let buttonStyle = styles.btnPending;
   let iconColor = "#0f172a";
   let badgeText = "À RÉSERVER";
-  let descriptiveNote = "🔥 Plat disponible à la réservation";
+  let descriptiveNote = "🔥 Réservez votre portion pour les prochains jours";
 
-  if (isTodayOffer) {
+  if (canOrderToday) {
     actionLabel = "Commander";
     buttonStyle = styles.btnConfirmed;
     iconColor = "#fff";
     badgeText = "MENU DU JOUR";
     descriptiveNote = "🍲 Menu du Jour — Production garantie aujourd'hui";
-  } else if (item.reel_category === "FUTURE_RESERVATION") {
-    actionLabel = "Réserver";
-    buttonStyle = item.is_threshold_reached ? styles.btnConfirmed : styles.btnPending;
-    iconColor = item.is_threshold_reached ? "#fff" : "#0f172a";
-    badgeText = "À RÉSERVER";
-    descriptiveNote = "🔥 Offre disponible à la réservation";
   } else {
     actionLabel = "Réserver";
     buttonStyle = styles.btnPending;

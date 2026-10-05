@@ -74,9 +74,10 @@ const getMarketingMessage = (offer: any, threshold: number = 4) => {
 
 const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const isCatalogueProduct = item?.isCatalogueProduct ?? (item?.reel_category === 'CATALOG_PRODUCT' || !item?.daily_offer_id);
-  const availableDates = generateNext7Days();
+  const fallbackDates = generateNext7Days();
   
   const [existingOffers, setExistingOffers] = useState<any[]>([]);
+  const [availabilityDates, setAvailabilityDates] = useState<any[]>([]);
   const [selectedDateIndex, setSelectedDateIndex] = useState(0);
   const [loadingOffers, setLoadingOffers] = useState(false);
 
@@ -96,6 +97,9 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const pricePerUnit = isCatalogueProduct ? (item?.price || 2500) : (item?.price_per_unit || 0);
   const productId = isCatalogueProduct ? item?.id : item?.product?.id;
 
+  // Liste effective des dates (dynamique depuis le backend ou fallback généré)
+  const datesList = availabilityDates.length > 0 ? availabilityDates : fallbackDates.map(d => ({ ...d, is_open: true }));
+
   // ✅ CORRECTION INFAILLIBLE DES ACCOMPAGNEMENTS (SIDES)
   const rawComplements = item?.sides || (isCatalogueProduct
     ? (item?.complements || item?.product?.complements) 
@@ -110,7 +114,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   const lockedOfferDate = item?.offerDate || item?.target_date;
 
-  const selectedDateStr = availableDates[selectedDateIndex]?.date;
+  const selectedDateStr = datesList[selectedDateIndex]?.date;
   const currentOffer = existingOffers.find((o: any) => o.target_date === selectedDateStr && Number(o.product?.id) === Number(productId));
   const marketingState = getMarketingMessage(currentOffer, 4);
 
@@ -142,6 +146,17 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const loadExistingOffers = async () => {
     setLoadingOffers(true);
     try {
+      if (productId) {
+        const cityParam = selectedCity?.id ? `?city_id=${selectedCity.id}` : "";
+        const availability = await apiFetch(`/products/${productId}/availability${cityParam}`, { method: "GET" }, false).catch(() => null);
+        if (availability?.reservations?.dates?.length > 0) {
+          setAvailabilityDates(availability.reservations.dates);
+          const firstOpenIdx = availability.reservations.dates.findIndex((d: any) => d.is_open);
+          if (firstOpenIdx !== -1) {
+            setSelectedDateIndex(firstOpenIdx);
+          }
+        }
+      }
       const allOffers = await apiFetch("/offers/upcoming?days=7", { method: "GET" }, false);
       const productIdNum = Number(productId);
       const filtered = (allOffers || []).filter((o: any) => Number(o.product?.id) === productIdNum);
@@ -238,9 +253,10 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       }
     } catch (error: any) {
       console.error("❌ Erreur:", error);
+      const errorMsg = error?.data?.detail || error?.message || "Une erreur est survenue.";
       showAlert(
-        "Erreur de paiement",
-        `${error.message || "Une erreur est survenue."}\n\n💡 Conseil : Assurez-vous que votre compte Orange Money ou MTN MoMo est actif et que votre solde est supérieur au montant de l'acompte.`
+        "Information commande",
+        `${errorMsg}\n\n💡 Conseil : Assurez-vous que votre compte Orange Money ou MTN MoMo est actif et que votre solde est supérieur au montant de l'acompte.`
       );
     } finally {
       setLoading(false);
@@ -266,11 +282,36 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                   <ActivityIndicator size="small" color="#E31C25" style={{ marginVertical: 15 }} />
                 ) : (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateSelector}>
-                    {availableDates.map((dateOption, index) => {
+                    {datesList.map((dateOption: any, index: number) => {
                       const isSelected = selectedDateIndex === index;
+                      const isOpen = dateOption.is_open ?? true;
                       return (
-                        <TouchableOpacity key={dateOption.date} onPress={() => setSelectedDateIndex(index)} style={[styles.dateOption, isSelected && styles.dateOptionSelected]}>
-                          <Text style={[styles.dateOptionText, isSelected && styles.dateOptionTextSelected]}>{dateOption.label}</Text>
+                        <TouchableOpacity
+                          key={dateOption.date}
+                          onPress={() => {
+                            if (!isOpen) {
+                              showAlert("Réservation non disponible", dateOption.status_message || "Les réservations pour cette date sont closes.");
+                              return;
+                            }
+                            setSelectedDateIndex(index);
+                          }}
+                          style={[
+                            styles.dateOption,
+                            isSelected && styles.dateOptionSelected,
+                            !isOpen && styles.dateOptionDisabled
+                          ]}
+                          activeOpacity={isOpen ? 0.7 : 0.9}
+                        >
+                          <Text style={[
+                            styles.dateOptionText,
+                            isSelected && styles.dateOptionTextSelected,
+                            !isOpen && styles.dateOptionTextDisabled
+                          ]}>
+                            {dateOption.label}
+                          </Text>
+                          {!isOpen && (
+                            <Text style={styles.closedTag}>Clôturé</Text>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -424,8 +465,11 @@ const styles = StyleSheet.create({
   dateSelector: { flexDirection: "row", marginTop: 5 },
   dateOption: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: "#f1f5f9", marginRight: 8, alignItems: "center", borderWidth: 2, borderColor: "transparent" },
   dateOptionSelected: { backgroundColor: "#E31C25", borderColor: "#E31C25" },
+  dateOptionDisabled: { backgroundColor: "#f8fafc", borderColor: "#e2e8f0", opacity: 0.6 },
   dateOptionText: { fontSize: 11, fontWeight: "700", color: "#64748b", textAlign: "center" },
   dateOptionTextSelected: { color: "white" },
+  dateOptionTextDisabled: { color: "#94a3b8" },
+  closedTag: { fontSize: 8, fontWeight: "900", color: "#dc2626", marginTop: 2, textTransform: "uppercase" },
   marketingBanner: { backgroundColor: "#F8FAFC", padding: 12, borderRadius: 8, marginTop: 12, borderLeftWidth: 4 },
   marketingText: { fontSize: 13, fontWeight: "600", textAlign: "center" },
   counterContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 10 },

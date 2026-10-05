@@ -171,32 +171,18 @@ export default function ReelsScreen() {
     }
   }, []);
 
-  // ✅ LOGIQUE MÉTIER BASÉE SUR reel_category
+  // ✅ LOGIQUE MÉTIER BASÉE SUR DISPONIBILITÉ RÉELLE (COMMANDER vs RÉSERVER)
   const onPressOrder = useCallback((item: Reel | any) => {
     const rawSides = item.sides || item.product?.complements || ["Riz", "Plantain", "Bâton de manioc"];
     const sidesStr = Array.isArray(rawSides) ? rawSides.join(", ") : String(rawSides);
-    const category = item.reel_category || (item.is_catalogue ? "CATALOG_PRODUCT" : "DAILY_MENU");
+    const canOrderToday = Boolean(item.can_order_today) || 
+                          (item.reel_category === "DAILY_MENU" && (item.is_threshold_reached || ['confirmed', 'cooking', 'ready', 'delivering'].includes(String(item.status || '').toLowerCase())));
 
-    if (category === "CATALOG_PRODUCT") {
-      // 3. PRODUIT CATALOGUE -> Modal de commande simple
-      setSelectedItem({
-        id: item.product?.id || item.id,
-        isCatalogueProduct: true,
-        sides: sidesStr,
-        name: item.product?.name || item.title || "Plat KemTchop",
-        image_url: item.product?.image_url || item.image_url,
-        price: item.price_per_unit || 2500,
-        complements: sidesStr
-      });
-      setModalVisible(true);
-      return;
-    }
-
-    if (category === "DAILY_MENU") {
-      // 1. MENU DU JOUR -> Modal avec créneaux horaires, sans sélecteur de date
+    if (canOrderToday) {
+      // 1. MENU DU JOUR (AUJOURD'HUI) -> Modal de commande avec créneaux du jour
       setSelectedItem({
         id: item.daily_offer_id || item.id,
-        isCatalogueProduct: false, // Masque le sélecteur de date
+        isCatalogueProduct: false, // Mode commande directe aujourd'hui
         sides: sidesStr,
         offerDate: item.target_date || item.offer_date,
         target_date: item.target_date || item.offer_date,
@@ -216,29 +202,16 @@ export default function ReelsScreen() {
       return;
     }
 
-    if (category === "FUTURE_RESERVATION") {
-      // 2. RÉSERVATION FUTURE -> Modal avec sélecteur de date future
-      setSelectedItem({
-        id: item.product?.id || item.daily_offer_id || item.id,
-        isCatalogueProduct: true, // Permet le choix de la date
-        sides: sidesStr,
-        name: item.product?.name || item.title || "Plat KemTchop",
-        image_url: item.product?.image_url || item.image_url,
-        price: item.price_per_unit || 2500,
-        complements: sidesStr,
-        target_date: item.target_date || item.offer_date
-      });
-      setModalVisible(true);
-      return;
-    }
-
-    // Fallback par défaut
+    // 2. RÉSERVATION FUTURE (Corn Tchap ou plat sans cuisson aujourd'hui) -> Modal de réservation avec choix de date
     setSelectedItem({
-      id: item.id,
-      isCatalogueProduct: true,
+      id: item.product?.id || item.daily_offer_id || item.id,
+      isCatalogueProduct: true, // Active le choix de date dynamique
       sides: sidesStr,
       name: item.product?.name || item.title || "Plat KemTchop",
-      price_per_unit: item.price_per_unit || 2500
+      image_url: item.product?.image_url || item.image_url,
+      price: item.price_per_unit || 2500,
+      complements: sidesStr,
+      target_date: item.target_date || item.offer_date
     });
     setModalVisible(true);
   }, []);
