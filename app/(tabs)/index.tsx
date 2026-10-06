@@ -36,12 +36,14 @@ export type CatalogueProduct = {
   price_per_unit: number;
   progress_percentage: number;
   remaining_capacity: number;
+  variants?: any[];
   product: {
     id: number;
     name: string;
     image_url: string;
     category: string;
     complements: string;
+    variants?: any[];
   };
 };
 
@@ -160,12 +162,14 @@ export default function HomeScreen() {
           price_per_unit: Number(p.price || 2500),
           progress_percentage: 0,
           remaining_capacity: 999,
+          variants: p.variants || [],
           product: {
             id: Number(p.id),
             name: String(p.name || ""),
             image_url: secureUrl,
             category: String(p.category || "Général"),
             complements: String(p.complements || "Standard"),
+            variants: p.variants || [],
           }
         };
       });

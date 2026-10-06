@@ -186,11 +186,13 @@ export default function ReelsScreen() {
         sides: sidesStr,
         offerDate: item.target_date || item.offer_date,
         target_date: item.target_date || item.offer_date,
+        variants: item.product?.variants || item.variants || [],
         product: {
           id: item.product?.id,
           name: item.product?.name || item.title || "Plat KemTchop",
           image_url: item.product?.image_url || item.image_url,
-          complements: sidesStr
+          complements: sidesStr,
+          variants: item.product?.variants || item.variants || []
         },
         status: item.status,
         is_threshold_reached: item.is_threshold_reached,
@@ -211,7 +213,8 @@ export default function ReelsScreen() {
       image_url: item.product?.image_url || item.image_url,
       price: item.price_per_unit || 2500,
       complements: sidesStr,
-      target_date: item.target_date || item.offer_date
+      target_date: item.target_date || item.offer_date,
+      variants: item.product?.variants || item.variants || []
     });
     setModalVisible(true);
   }, []);

@@ -94,8 +94,18 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const [showCustomization, setShowCustomization] = useState(false);
 
   const productName = isCatalogueProduct ? item?.name : item?.product?.name;
-  const pricePerUnit = isCatalogueProduct ? (item?.price || 2500) : (item?.price_per_unit || 0);
   const productId = isCatalogueProduct ? item?.id : item?.product?.id;
+
+  // 🥩 Variantes de préparation du plat (ex: Viande, Poisson, Crevettes)
+  const initialVariants = (item?.variants || item?.product?.variants || []).filter((v: any) => v.is_active !== false);
+  const [variantsList, setVariantsList] = useState<any[]>(initialVariants);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(() => {
+    return initialVariants.length > 0 ? initialVariants[0].id : null;
+  });
+
+  const selectedVariant = variantsList.find((v: any) => v.id === selectedVariantId) || null;
+  const basePrice = isCatalogueProduct ? (item?.price || 2500) : (item?.price_per_unit || 0);
+  const pricePerUnit = selectedVariant ? Number(selectedVariant.price) : basePrice;
 
   // Liste effective des dates (dynamique depuis le backend ou fallback généré)
   const datesList = availabilityDates.length > 0 ? availabilityDates : fallbackDates.map(d => ({ ...d, is_open: true }));
@@ -121,6 +131,10 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   useEffect(() => {
     if (visible) {
       try {
+        const itemVars = (item?.variants || item?.product?.variants || []).filter((v: any) => v.is_active !== false);
+        setVariantsList(itemVars);
+        setSelectedVariantId(itemVars.length > 0 ? itemVars[0].id : null);
+
         AsyncStorage.getItem("user_phone").then((p) => p && setPhone(p)).catch(() => {});
         AsyncStorage.getItem("selected_city").then((c) => {
           if (c) {
@@ -136,7 +150,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         setComplement("");
         setPortions(1);
         setSelectedDateIndex(0);
-        if (isCatalogueProduct) loadExistingOffers();
+        loadExistingOffers();
       } catch (e) {
         console.error("🔴 Erreur initialisation OrderModal:", e);
       }
@@ -155,6 +169,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           if (firstOpenIdx !== -1) {
             setSelectedDateIndex(firstOpenIdx);
           }
+        }
+        if (availability?.variants && availability.variants.length > 0) {
+          const activeVars = availability.variants.filter((v: any) => v.is_active !== false);
+          setVariantsList(activeVars);
+          setSelectedVariantId((prev) => (prev ? prev : (activeVars.length > 0 ? activeVars[0].id : null)));
         }
       }
       const allOffers = await apiFetch("/offers/upcoming?days=7", { method: "GET" }, false);
@@ -212,6 +231,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         method: "POST",
         body: JSON.stringify({
           product_id: productId,
+          variant_id: selectedVariantId || null,
           target_date: selectedDateStr || lockedOfferDate,
           portions,
           delivery_zone: userZone.trim(),
@@ -227,13 +247,14 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       if (!orderResult.order_id) throw new Error("Échec création commande");
 
       // ✅ SebPay : le backend calcule lui-même l'acompte de 40 % à partir du TOTAL
+      const variantSuffix = selectedVariant ? ` (${selectedVariant.name})` : "";
       const paymentResult = await apiFetch("/payments/sebpay/init", {
         method: "POST",
         body: JSON.stringify({
           order_id: orderResult.order_id,
           amount: finalTotal,
           phone: phone.trim(),
-          description: `Acompte 40% - ${productName} (${portions} portions)`,
+          description: `Acompte 40% - ${productName}${variantSuffix} (${portions} portions)`,
         }),
       }, true);
 
@@ -327,6 +348,41 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </View>
             ) : null}
 
+            {/* 🥩 SÉLECTEUR DE VARIANTE (ex: Viande, Poisson, Crevettes) */}
+            {variantsList.length > 0 && (
+              <View style={styles.variantSection}>
+                <Text style={styles.label}>🥩 Choisissez votre préparation :</Text>
+                <View style={styles.variantList}>
+                  {variantsList.map((v: any) => {
+                    const isSelected = selectedVariantId === v.id;
+                    return (
+                      <TouchableOpacity
+                        key={v.id}
+                        onPress={() => setSelectedVariantId(v.id)}
+                        style={[
+                          styles.variantOption,
+                          isSelected && styles.variantOptionSelected
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.variantOptionLeft}>
+                          <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                            {isSelected && <View style={styles.radioInnerCircle} />}
+                          </View>
+                          <Text style={[styles.variantNameText, isSelected && styles.variantNameTextSelected]}>
+                            {v.name}
+                          </Text>
+                        </View>
+                        <Text style={[styles.variantPriceText, isSelected && styles.variantPriceTextSelected]}>
+                          {safeFormatNumber(v.price)} FCFA
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             <Text style={styles.label}>{`🍽️ Nombre de portions (${pricePerUnit} FCFA/portion) :`}</Text>
             <View style={styles.counterContainer}>
               <TouchableOpacity style={[styles.counterBtn, portions <= 1 && styles.counterBtnDisabled]} onPress={() => portions > 1 && setPortions(portions - 1)} disabled={portions <= 1}>
@@ -414,7 +470,14 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             <Text style={styles.phoneHint}>Ce numéro recevra la demande de débit Mobile Money.</Text>
 
             <View style={styles.priceContainer}>
-              <View style={styles.priceLine}><Text style={styles.priceLabel}>{`Repas (${portions} portion${portions > 1 ? "s" : ""})`}</Text><Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text></View>
+              <View style={styles.priceLine}>
+                <Text style={styles.priceLabel}>
+                  {selectedVariant
+                    ? `Repas — ${selectedVariant.name} (${portions} portion${portions > 1 ? "s" : ""})`
+                    : `Repas (${portions} portion${portions > 1 ? "s" : ""})`}
+                </Text>
+                <Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text>
+              </View>
               <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
               {customizationNote.trim().length > 0 && (
                 <View style={styles.recapCustomizationLine}>
@@ -526,6 +589,67 @@ const styles = StyleSheet.create({
   recapCustomizationLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: "#fffbeb", borderRadius: 6 },
   recapCustomizationLabel: { fontSize: 11, fontWeight: "800", color: "#92400e" },
   recapCustomizationValue: { fontSize: 11, fontStyle: "italic", color: "#78350f", flex: 1, textAlign: "right", marginLeft: 8 },
+  variantSection: { width: "100%", marginTop: 8, marginBottom: 4 },
+  variantList: { flexDirection: "column", marginTop: 4 },
+  variantOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    marginBottom: 8,
+  },
+  variantOptionSelected: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#E31C25",
+  },
+  variantOptionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#cbd5e1",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    marginRight: 10,
+  },
+  radioCircleSelected: {
+    borderColor: "#E31C25",
+  },
+  radioInnerCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#E31C25",
+  },
+  variantNameText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  variantNameTextSelected: {
+    color: "#991b1b",
+    fontWeight: "800",
+  },
+  variantPriceText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#64748b",
+  },
+  variantPriceTextSelected: {
+    color: "#E31C25",
+    fontWeight: "900",
+  },
 });
 
 export default OrderModal;
