@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Linking,
@@ -104,7 +105,12 @@ export default function LoginScreen() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ width: "100%" }}>
+          <View style={{ width: "100%", alignItems: "center" }}>
+            <Image
+              source={require("../assets/images/icon.png")}
+              style={{ width: 84, height: 84, borderRadius: 20, marginBottom: 16 }}
+              resizeMode="cover"
+            />
             <Text style={styles.title}>KEMTCHOP</Text>
             <Text style={styles.subtitle}>Connectez-vous pour commander</Text>
 

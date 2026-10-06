@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import { SearchBar } from '../SearchBar';
 
@@ -21,7 +21,14 @@ export default function HomeHeader({
   return (
     <View style={styles.topBar}>
       <View style={styles.headerRow}>
-        <Text style={styles.logo}>KEMTCHOP</Text>
+        <View style={styles.brandContainer}>
+          <Image
+            source={require('../../../assets/images/icon.png')}
+            style={styles.logoImage}
+            resizeMode="cover"
+          />
+          <Text style={styles.logo}>KEMTCHOP</Text>
+        </View>
         <TouchableOpacity style={styles.cityPicker} onPress={onPressCity}>
           <MapPin size={16} color="#E31C25" />
           <Text style={styles.cityName}>
@@ -52,11 +59,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10,
   },
+  brandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+  },
   logo: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900",
     color: "#E31C25",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   cityPicker: {
     flexDirection: 'row',
