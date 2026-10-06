@@ -1,64 +1,116 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
-import { Download, X, Share, PlusSquare, Smartphone, MoreVertical, CheckCircle2 } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, Image } from 'react-native';
+import { Download, X, Share, PlusSquare, Smartphone, MoreVertical, CheckCircle2, Sparkles, RefreshCw, Trash2 } from 'lucide-react-native';
+
+const CURRENT_PWA_VERSION = 2;
+const KEY_INSTALLED_VERSION = 'kemtchop_pwa_version';
+const KEY_BANNER_DISMISSED = 'kemtchop_pwa_dismissed';
+const KEY_UPDATE_DISMISSED = 'kemtchop_pwa_update_dismissed_v2';
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [alreadyInstalled, setAlreadyInstalled] = useState(false);
+  const [needsIconUpdate, setNeedsIconUpdate] = useState(false);
+
+  const [installBannerVisible, setInstallBannerVisible] = useState(false);
+  const [updateBannerVisible, setUpdateBannerVisible] = useState(false);
   const [iosModalVisible, setIosModalVisible] = useState(false);
   const [fallbackModalVisible, setFallbackModalVisible] = useState(false);
+  const [updateHelpModalVisible, setUpdateHelpModalVisible] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
-    // 1. Détecter si l'application est déjà installée en mode standalone
+    // 1. Détecter si l'application tourne actuellement en mode autonome (PWA / Standalone)
     const standaloneMode =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes('android-app://');
 
-    if (standaloneMode) {
-      setIsStandalone(true);
-      return;
-    }
+    setIsStandalone(standaloneMode);
 
-    // 2. Détecter iOS (Safari sur iPhone/iPad)
+    // 2. Détecter iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIosDevice);
 
-    // 3. Vérifier si l'utilisateur a fermé l'invite récemment dans cette session
-    const isDismissed = sessionStorage.getItem('kemtchop_pwa_dismissed');
-    if (isDismissed) return;
+    // 3. Lire la version enregistrée dans le stockage local
+    const storedVersion = Number(localStorage.getItem(KEY_INSTALLED_VERSION) || 0);
 
-    // 4. Récupérer l'événement global s'il a déjà été capturé au boot
-    if ((window as any).deferredPWAPrompt) {
-      console.log('[PWA Component] deferredPWAPrompt trouvé sur window au montage');
-      setDeferredPrompt((window as any).deferredPWAPrompt);
-      setVisible(true);
-    }
+    // 4. Détecter si l'application est déjà installée sur l'appareil (Chrome getInstalledRelatedApps)
+    const checkInstalledApps = async () => {
+      let isInstalledOnDevice = standaloneMode || storedVersion >= CURRENT_PWA_VERSION;
 
-    // 5. Écouter l'événement natif direct ou l'événement personnalisé
+      if ('getInstalledRelatedApps' in navigator) {
+        try {
+          const relatedApps = await (navigator as any).getInstalledRelatedApps();
+          if (relatedApps && relatedApps.length > 0) {
+            isInstalledOnDevice = true;
+          }
+        } catch (e) {
+          // Ignorer l'erreur silencieusement
+        }
+      }
+
+      setAlreadyInstalled(isInstalledOnDevice);
+
+      // CAS A : L'utilisateur est en standalone mais possède une ancienne version (< 2)
+      if (standaloneMode && storedVersion < CURRENT_PWA_VERSION) {
+        const updateDismissed = sessionStorage.getItem(KEY_UPDATE_DISMISSED);
+        if (!updateDismissed) {
+          setNeedsIconUpdate(true);
+          setUpdateBannerVisible(true);
+        }
+        return;
+      }
+
+      // CAS B : L'utilisateur est DÉJÀ à jour en standalone -> ZÉRO BANNIÈRE
+      if (standaloneMode) {
+        // Enregistrer la version courante
+        localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
+        return;
+      }
+
+      // CAS C : Visite depuis un onglet web ordinaire
+      // Si l'application est déjà installée sur l'appareil -> NE PAS afficher "Installer"
+      if (isInstalledOnDevice) {
+        return;
+      }
+
+      // Sinon (vraiment pas installée) : vérifier si dismissé dans cette session
+      const sessionDismissed = sessionStorage.getItem(KEY_BANNER_DISMISSED);
+      if (!sessionDismissed) {
+        // Laisser 1.5s pour que le client profite du premier rendu
+        setTimeout(() => {
+          setInstallBannerVisible(true);
+        }, 1500);
+      }
+    };
+
+    checkInstalledApps();
+
+    // 5. Capturer l'événement beforeinstallprompt de Chrome
     const handleBeforeInstall = (e: any) => {
       e.preventDefault();
       (window as any).deferredPWAPrompt = e;
       setDeferredPrompt(e);
-      setVisible(true);
-      console.log('[PWA Component] beforeinstallprompt intercepté dans le composant');
+      console.log('[PWA] beforeinstallprompt capturé');
     };
 
     const handlePromptReady = () => {
       if ((window as any).deferredPWAPrompt) {
         setDeferredPrompt((window as any).deferredPWAPrompt);
-        setVisible(true);
-        console.log('[PWA Component] pwa-prompt-ready reçu');
       }
     };
 
     const handleAppInstalled = () => {
-      console.log('[PWA Component] appinstalled détecté, masquage du prompt');
-      setVisible(false);
+      console.log('[PWA] Application installée avec succès !');
+      localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
+      setInstallBannerVisible(false);
+      setUpdateBannerVisible(false);
+      setAlreadyInstalled(true);
       setIsStandalone(true);
       setDeferredPrompt(null);
       (window as any).deferredPWAPrompt = null;
@@ -68,21 +120,14 @@ export default function PWAInstallPrompt() {
     window.addEventListener('pwa-prompt-ready', handlePromptReady);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Afficher la bannière après un court délai pour guider l'utilisateur
-    const timer = setTimeout(() => {
-      if (!standaloneMode) {
-        setVisible(true);
-      }
-    }, 1500);
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('pwa-prompt-ready', handlePromptReady);
       window.removeEventListener('appinstalled', handleAppInstalled);
-      clearTimeout(timer);
     };
   }, []);
 
+  // Déclenchement de l'installation
   const handleInstallClick = async () => {
     if (isIOS) {
       setIosModalVisible(true);
@@ -93,16 +138,13 @@ export default function PWAInstallPrompt() {
 
     if (promptEvent) {
       try {
-        console.log('[PWA] Appel de promptEvent.prompt()...');
         await promptEvent.prompt();
         const choice = await promptEvent.userChoice;
-        console.log('[PWA] Résultat userChoice:', choice);
 
         if (choice && choice.outcome === 'accepted') {
-          console.log('[PWA] Installation confirmée par l’utilisateur');
-          setVisible(false);
-        } else {
-          console.log('[PWA] Installation annulée par l’utilisateur');
+          localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
+          setInstallBannerVisible(false);
+          setAlreadyInstalled(true);
         }
 
         setDeferredPrompt(null);
@@ -110,58 +152,160 @@ export default function PWAInstallPrompt() {
           (window as any).deferredPWAPrompt = null;
         }
       } catch (e) {
-        console.warn('[PWA] Erreur lors du prompt natif, ouverture guide secours:', e);
         setFallbackModalVisible(true);
       }
     } else {
-      console.log('[PWA] Aucun événement natif disponible, ouverture guide secours');
       setFallbackModalVisible(true);
     }
   };
 
-  const handleDismiss = () => {
-    setVisible(false);
+  const handleDismissInstall = () => {
+    setInstallBannerVisible(false);
     if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('kemtchop_pwa_dismissed', 'true');
+      sessionStorage.setItem(KEY_BANNER_DISMISSED, 'true');
     }
   };
 
-  if (!visible || isStandalone) return null;
+  const handleDismissUpdate = () => {
+    setUpdateBannerVisible(false);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(KEY_UPDATE_DISMISSED, 'true');
+    }
+  };
+
+  const handleMarkUpdateDone = () => {
+    localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
+    setUpdateBannerVisible(false);
+    setUpdateHelpModalVisible(false);
+  };
 
   return (
     <>
-      {/* 📲 Bannière flottante d'installation */}
-      <View style={styles.bannerContainer}>
-        <View style={styles.bannerContent}>
-          <View style={styles.iconBadge}>
-            <Smartphone size={22} color="#ffffff" />
+      {/* 🔴 CAS 1 : BANNIÈRE DE MISE À JOUR VISUELLE (Pour les utilisateurs de l'ancienne PWA) */}
+      {updateBannerVisible && (
+        <View style={styles.updateBannerContainer}>
+          <View style={styles.bannerContent}>
+            <View style={styles.iconBadgeUpdate}>
+              <Sparkles size={20} color="#ffffff" />
+            </View>
+
+            <View style={styles.textWrapper}>
+              <Text style={styles.updateBannerTitle}>✨ Nouvelle identité KemTchop</Text>
+              <Text style={styles.updateBannerSubtitle}>
+                Pour afficher le nouveau logo sur votre écran d'accueil, renouvelez votre raccourci.
+              </Text>
+            </View>
+
+            <TouchableOpacity style={styles.closeButton} onPress={handleDismissUpdate}>
+              <X size={18} color="#94a3b8" />
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.textWrapper}>
-            <Text style={styles.bannerTitle}>Ajouter KemTchop à l'écran</Text>
-            <Text style={styles.bannerSubtitle}>
-              Commandez directement sans passer par le navigateur !
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.dismissBtn} onPress={handleDismissUpdate}>
+              <Text style={styles.dismissBtnText}>Plus tard</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.updateBtn}
+              onPress={() => setUpdateHelpModalVisible(true)}
+            >
+              <RefreshCw size={15} color="#ffffff" style={{ marginRight: 6 }} />
+              <Text style={styles.updateBtnText}>Comment faire ?</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* 🟢 CAS 2 : BANNIÈRE D'INSTALLATION STANDARD (Uniquement si PAS encore installée) */}
+      {installBannerVisible && !alreadyInstalled && !isStandalone && (
+        <View style={styles.bannerContainer}>
+          <View style={styles.bannerContent}>
+            <View style={styles.iconBadge}>
+              <Smartphone size={22} color="#ffffff" />
+            </View>
+
+            <View style={styles.textWrapper}>
+              <Text style={styles.bannerTitle}>Ajouter KemTchop à l'écran</Text>
+              <Text style={styles.bannerSubtitle}>
+                Commandez vos repas en 1 clic sans passer par le navigateur !
+              </Text>
+            </View>
+
+            <TouchableOpacity style={styles.closeButton} onPress={handleDismissInstall}>
+              <X size={18} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.dismissBtn} onPress={handleDismissInstall}>
+              <Text style={styles.dismissBtnText}>Plus tard</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.installBtn} onPress={handleInstallClick}>
+              <Download size={16} color="#ffffff" style={{ marginRight: 6 }} />
+              <Text style={styles.installBtnText}>Installer l'application</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* 🔄 MODALE D'AIDE À LA MISE À JOUR DE L'ICÔNE */}
+      <Modal
+        visible={updateHelpModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setUpdateHelpModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>✨ Actualiser votre icône</Text>
+              <TouchableOpacity onPress={() => setUpdateHelpModalVisible(false)}>
+                <X size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalInstructionIntro}>
+              Pour afficher la nouvelle icône avec la marmite rouge officielle sur votre téléphone :
             </Text>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <Trash2 size={20} color="#E31C25" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 1</Text>
+                <Text style={styles.stepText}>
+                  Sur l'écran d'accueil de votre téléphone, supprimez l'ancien raccourci <Text style={styles.boldText}>KemTchop</Text>.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <PlusSquare size={20} color="#10B981" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 2</Text>
+                <Text style={styles.stepText}>
+                  Depuis votre navigateur, touchez le menu <Text style={styles.boldText}>⋮</Text> ou <Text style={styles.boldText}>Partager</Text> puis <Text style={styles.boldText}>« Installer »</Text>.
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalConfirmButton}
+              onPress={handleMarkUpdateDone}
+            >
+              <CheckCircle2 size={18} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.modalConfirmButtonText}>C'est fait, merci !</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.closeButton} onPress={handleDismiss}>
-            <X size={18} color="#94a3b8" />
-          </TouchableOpacity>
         </View>
+      </Modal>
 
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.dismissBtn} onPress={handleDismiss}>
-            <Text style={styles.dismissBtnText}>Plus tard</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.installBtn} onPress={handleInstallClick}>
-            <Download size={16} color="#ffffff" style={{ marginRight: 6 }} />
-            <Text style={styles.installBtnText}>Installer l'application</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 🍏 Modal d'instructions pour iPhone / iPad Safari */}
+      {/* 🍏 Modal d'instructions pour iPhone Safari */}
       <Modal
         visible={iosModalVisible}
         transparent={true}
@@ -171,14 +315,14 @@ export default function PWAInstallPrompt() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📲 Installer sur votre iPhone</Text>
+              <Text style={styles.modalTitle}>📲 Installer sur iPhone</Text>
               <TouchableOpacity onPress={() => setIosModalVisible(false)}>
                 <X size={22} color="#64748b" />
               </TouchableOpacity>
             </View>
 
             <Text style={styles.modalInstructionIntro}>
-              Ajoutez KemTchop à votre écran d'accueil en 3 étapes simples :
+              Ajoutez KemTchop à votre écran d'accueil en 3 étapes :
             </Text>
 
             <View style={styles.stepItem}>
@@ -188,7 +332,7 @@ export default function PWAInstallPrompt() {
               <View style={styles.stepTextWrapper}>
                 <Text style={styles.stepNumber}>Étape 1</Text>
                 <Text style={styles.stepText}>
-                  Appuyez sur le bouton <Text style={styles.boldText}>Partager</Text> (icône en bas du navigateur Safari).
+                  Touchez le bouton <Text style={styles.boldText}>Partager</Text> en bas de Safari.
                 </Text>
               </View>
             </View>
@@ -200,19 +344,19 @@ export default function PWAInstallPrompt() {
               <View style={styles.stepTextWrapper}>
                 <Text style={styles.stepNumber}>Étape 2</Text>
                 <Text style={styles.stepText}>
-                  Faites défiler vers le bas et touchez <Text style={styles.boldText}>« Sur l'écran d'accueil »</Text>.
+                  Choisissez <Text style={styles.boldText}>« Sur l'écran d'accueil »</Text>.
                 </Text>
               </View>
             </View>
 
             <View style={styles.stepItem}>
               <View style={styles.stepIcon}>
-                <Smartphone size={20} color="#10B981" />
+                <CheckCircle2 size={20} color="#10B981" />
               </View>
               <View style={styles.stepTextWrapper}>
                 <Text style={styles.stepNumber}>Étape 3</Text>
                 <Text style={styles.stepText}>
-                  Touchez <Text style={styles.boldText}>« Ajouter »</Text> en haut à droite. C'est prêt !
+                  Touchez <Text style={styles.boldText}>« Ajouter »</Text> en haut à droite.
                 </Text>
               </View>
             </View>
@@ -221,7 +365,7 @@ export default function PWAInstallPrompt() {
               style={styles.modalCloseButton}
               onPress={() => {
                 setIosModalVisible(false);
-                handleDismiss();
+                handleDismissInstall();
               }}
             >
               <Text style={styles.modalCloseButtonText}>J'ai compris</Text>
@@ -230,7 +374,7 @@ export default function PWAInstallPrompt() {
         </View>
       </Modal>
 
-      {/* 🤖 Modal d'instructions pour Android Chrome (Secours garanti) */}
+      {/* 🤖 Modal d'instructions pour Android Chrome (Secours) */}
       <Modal
         visible={fallbackModalVisible}
         transparent={true}
@@ -247,7 +391,7 @@ export default function PWAInstallPrompt() {
             </View>
 
             <Text style={styles.modalInstructionIntro}>
-              Ajoutez KemTchop à votre écran d'accueil en 3 clics rapides :
+              Ajoutez KemTchop à votre écran d'accueil en 3 étapes :
             </Text>
 
             <View style={styles.stepItem}>
@@ -257,7 +401,7 @@ export default function PWAInstallPrompt() {
               <View style={styles.stepTextWrapper}>
                 <Text style={styles.stepNumber}>Étape 1</Text>
                 <Text style={styles.stepText}>
-                  Appuyez sur le menu <Text style={styles.boldText}>⋮ (3 points)</Text> en haut à droite de Google Chrome.
+                  Appuyez sur le menu <Text style={styles.boldText}>⋮ (3 points)</Text> en haut à droite de Chrome.
                 </Text>
               </View>
             </View>
@@ -281,7 +425,7 @@ export default function PWAInstallPrompt() {
               <View style={styles.stepTextWrapper}>
                 <Text style={styles.stepNumber}>Étape 3</Text>
                 <Text style={styles.stepText}>
-                  Appuyez sur <Text style={styles.boldText}>« Installer »</Text> dans la confirmation Android. C'est prêt !
+                  Confirmez avec <Text style={styles.boldText}>« Installer »</Text>. C'est prêt !
                 </Text>
               </View>
             </View>
@@ -290,7 +434,7 @@ export default function PWAInstallPrompt() {
               style={styles.modalCloseButton}
               onPress={() => {
                 setFallbackModalVisible(false);
-                handleDismiss();
+                handleDismissInstall();
               }}
             >
               <Text style={styles.modalCloseButtonText}>J'ai compris</Text>
@@ -317,6 +461,20 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
+  updateBannerContainer: {
+    backgroundColor: '#fffbeb',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#fde68a',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   bannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,6 +485,15 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 12,
     backgroundColor: '#E31C25',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  iconBadgeUpdate: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#d97706',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -342,6 +509,16 @@ const styles = StyleSheet.create({
   bannerSubtitle: {
     fontSize: 12,
     color: '#64748b',
+    marginTop: 2,
+  },
+  updateBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  updateBannerSubtitle: {
+    fontSize: 12,
+    color: '#b45309',
     marginTop: 2,
   },
   closeButton: {
@@ -376,6 +553,24 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   installBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  updateBtn: {
+    backgroundColor: '#d97706',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  updateBtnText: {
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
@@ -463,6 +658,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   modalCloseButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalConfirmButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  modalConfirmButtonText: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
