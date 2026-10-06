@@ -1,34 +1,37 @@
-// KemTchop PWA Service Worker v14 (Conforme critères d'installation Google Chrome PWA)
-const CACHE_NAME = 'kemtchop-pwa-v14';
+// KemTchop PWA Service Worker v15 (Conforme critères d'installation Google Chrome PWA)
+const CACHE_NAME = 'kemtchop-pwa-v15';
 
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/favicon.png',
+  '/favicon-v2.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-192-v2.png',
+  '/icon-512.png',
+  '/icon-512-v2.png'
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[KEMTCHOP-SW-v14] Installation du Service Worker...');
+  console.log('[KEMTCHOP-SW-v15] Installation du Service Worker...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[KEMTCHOP-SW-v14] Pré-cache partiel:', err);
+        console.warn('[KEMTCHOP-SW-v15] Pré-cache partiel:', err);
       });
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[KEMTCHOP-SW-v14] Activation et nettoyage des anciens caches...');
+  console.log('[KEMTCHOP-SW-v15] Activation et nettoyage des anciens caches...');
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       );
     }).then(() => {
-      console.log('[KEMTCHOP-SW-v14] Prise de contrôle immédiate.');
+      console.log('[KEMTCHOP-SW-v15] Prise de contrôle immédiate.');
       return self.clients.claim();
     })
   );

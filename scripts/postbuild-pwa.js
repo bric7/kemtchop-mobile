@@ -36,7 +36,7 @@ if (fs.existsSync(indexPath)) {
     <meta property="og:title" content="KemTchop — Plats Camerounais Authentiques & Grillades en Ligne" />
     <meta property="og:description" content="Commandez vos repas camerounais traditionnels livrés chez vous à Yaoundé et Douala : Ndolè, Eru, Poisson braisé, Taro sauce jaune, Poulet DG." />
     <meta property="og:url" content="https://kemtchop.shop/" />
-    <meta property="og:image" content="https://kemtchop.shop/icon-512.png" />
+    <meta property="og:image" content="https://kemtchop.shop/icon-512-v2.png" />
     <meta property="og:image:width" content="512" />
     <meta property="og:image:height" content="512" />
     <meta property="og:image:alt" content="KemTchop - Plats et grillades camerounaises" />
@@ -46,12 +46,12 @@ if (fs.existsSync(indexPath)) {
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="KemTchop — Cuisine Camerounaise & Grillades en Ligne" />
     <meta name="twitter:description" content="Livraison rapide de repas camerounais authentiques à Yaoundé et Douala." />
-    <meta name="twitter:image" content="https://kemtchop.shop/icon-512.png" />
+    <meta name="twitter:image" content="https://kemtchop.shop/icon-512-v2.png" />
 
     <!-- 📱 Configuration PWA & Icônes -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/favicon-v2.png" />
+    <link rel="apple-touch-icon" href="/icon-192-v2.png" />
     <meta name="theme-color" content="#E31C25" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -273,8 +273,11 @@ const filesToEnsure = [
   'manifest.json',
   'sw.js',
   'icon-192.png',
+  'icon-192-v2.png',
   'icon-512.png',
+  'icon-512-v2.png',
   'favicon.png',
+  'favicon-v2.png',
   'robots.txt',
   'sitemap.xml'
 ];

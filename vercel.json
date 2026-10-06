@@ -48,7 +48,7 @@
       ]
     },
     {
-      "source": "/(icon-192.png|icon-512.png|favicon.png)",
+      "source": "/(icon-192.*|icon-512.*|favicon.*)",
       "headers": [
         {
           "key": "Cache-Control",

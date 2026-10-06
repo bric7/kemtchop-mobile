@@ -28,12 +28,12 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:title" content="KemTchop — Plats Camerounais Authentiques & Grillades en Ligne" />
         <meta property="og:description" content="Commandez vos repas camerounais traditionnels livrés chez vous à Yaoundé et Douala : Ndolè, Eru, Poisson braisé, Taro sauce jaune, Poulet DG." />
         <meta property="og:url" content="https://kemtchop.shop/" />
-        <meta property="og:image" content="https://kemtchop.shop/icon-512.png" />
+        <meta property="og:image" content="https://kemtchop.shop/icon-512-v2.png" />
         <meta property="og:locale" content="fr_CM" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="KemTchop — Cuisine Camerounaise & Grillades en Ligne" />
         <meta name="twitter:description" content="Livraison rapide de repas camerounais authentiques à Yaoundé et Douala." />
-        <meta name="twitter:image" content="https://kemtchop.shop/icon-512.png" />
+        <meta name="twitter:image" content="https://kemtchop.shop/icon-512-v2.png" />
 
         {/* Resource Hints for High Performance */}
         <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
@@ -43,8 +43,8 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* PWA & Icons */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" type="image/png" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" type="image/png" href="/favicon-v2.png" />
+        <link rel="apple-touch-icon" href="/icon-192-v2.png" />
         <meta name="theme-color" content="#E31C25" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
