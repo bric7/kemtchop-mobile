@@ -137,6 +137,16 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const basePrice = isCatalogueProduct ? (item?.price || 2500) : (item?.price_per_unit || 0);
   const pricePerUnit = selectedVariant ? Number(selectedVariant.price) : basePrice;
 
+  // 🥗 Options & Accompagnements configurables (ex: Crudités 0F, Plantain frit +500F)
+  const initialOptions = (item?.options || item?.product?.options || []).filter((o: any) => o.is_active !== false);
+  const [optionsList, setOptionsList] = useState<any[]>(initialOptions);
+  const [selectedOptionId, setSelectedOptionId] = useState<number | null>(() => {
+    const def = initialOptions.find((o: any) => o.is_default);
+    return def ? def.id : (initialOptions.length > 0 ? initialOptions[0].id : null);
+  });
+  const selectedOption = optionsList.find((o: any) => o.id === selectedOptionId) || null;
+  const optionUnitFee = selectedOption ? Number(selectedOption.price || 0) : 0;
+
   // Liste effective des dates (dynamique depuis le backend ou fallback généré)
   const datesList = availabilityDates.length > 0 ? availabilityDates : fallbackDates.map(d => ({ ...d, is_open: true }));
 
@@ -177,6 +187,13 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           }
         }).catch(() => {});
         loadDeliveryZones();
+
+        // 🥗 Réinitialisation / Détection des options
+        const itemOpts = (item?.options || item?.product?.options || []).filter((o: any) => o.is_active !== false);
+        setOptionsList(itemOpts);
+        const defaultOpt = itemOpts.find((o: any) => o.is_default);
+        setSelectedOptionId(defaultOpt ? defaultOpt.id : (itemOpts.length > 0 ? itemOpts[0].id : null));
+
         setComplement("");
         setPortions(1);
         setSelectedDateIndex(0);
@@ -204,6 +221,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           const activeVars = availability.variants.filter((v: any) => v.is_active !== false);
           setVariantsList(activeVars);
           setSelectedVariantId((prev) => (prev ? prev : (activeVars.length > 0 ? activeVars[0].id : null)));
+        }
+        if (availability?.options && availability.options.length > 0) {
+          const activeOpts = availability.options.filter((o: any) => o.is_active !== false);
+          setOptionsList(activeOpts);
+          setSelectedOptionId((prev) => (prev ? prev : (activeOpts.length > 0 ? activeOpts[0].id : null)));
         }
       }
       const allOffers = await apiFetch("/offers/upcoming?days=7", { method: "GET" }, false);
@@ -242,7 +264,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
     return isKnownZone ? baseDeliveryPrice : baseDeliveryPrice + 500;
   };
 
-  const totalPrice = pricePerUnit * portions;
+  const totalPrice = (pricePerUnit + optionUnitFee) * portions;
   const deliveryPrice = calculateDeliveryPrice();
   const finalTotal = totalPrice + deliveryPrice;
   const deposit = Math.round(finalTotal * 0.4);
@@ -250,7 +272,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const handleValidation = async () => {
     if (loading) return;
 
-    if (!complement) {
+    const chosenComplement = optionsList.length > 0
+      ? (selectedOption ? selectedOption.name : (optionsList[0]?.name || "Standard"))
+      : complement;
+
+    if (!chosenComplement) {
       showAlert("Choix obligatoire", "Veuillez sélectionner un accompagnement.");
       return;
     }
@@ -266,10 +292,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         body: JSON.stringify({
           product_id: productId,
           variant_id: selectedVariantId || null,
+          selected_options: selectedOption ? [{ name: selectedOption.name, price: optionUnitFee }] : null,
           target_date: selectedDateStr || lockedOfferDate,
           portions,
           delivery_zone: userZone.trim(),
-          complement,
+          complement: chosenComplement,
           customization_note: customizationNote.trim() ? customizationNote.trim() : null,
           delivery_time: deliveryTime,
           phone: phone.trim(),
@@ -504,20 +531,40 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             </View>
 
             <Text style={styles.label}>🥘 Accompagnement <Text style={styles.requiredText}>*</Text> :</Text>
-            <View style={styles.wrapRow}>
-              {/* ✅ CORRECTION INFAILLIBLE DE L'AFFICHAGE DES CHIPS */}
-              {finalComplements.split(",").map((comp: string) => {
-                const cleanComp = comp.trim();
-                if (!cleanComp) return null;
-                const isSelected = complement === cleanComp;
-                return (
-                  <TouchableOpacity key={cleanComp} onPress={() => setComplement(cleanComp)} style={[styles.chip, isSelected ? styles.activeChip : styles.inactiveChip]}>
-                    <Text style={isSelected ? styles.activeText : styles.chipText}>{cleanComp}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {!complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
+            {optionsList.length > 0 ? (
+              <View style={styles.wrapRow}>
+                {optionsList.map((opt: any) => {
+                  const isSelected = selectedOptionId === opt.id;
+                  const priceLabel = Number(opt.price || 0) > 0 ? `+${safeFormatNumber(opt.price)} F` : "Inclus";
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => setSelectedOptionId(opt.id)}
+                      style={[styles.chip, isSelected ? styles.activeChip : styles.inactiveChip]}
+                    >
+                      <Text style={isSelected ? styles.activeText : styles.chipText}>
+                        {opt.name} ({priceLabel})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.wrapRow}>
+                {/* ✅ CORRECTION INFAILLIBLE DE L'AFFICHAGE DES CHIPS */}
+                {finalComplements.split(",").map((comp: string) => {
+                  const cleanComp = comp.trim();
+                  if (!cleanComp) return null;
+                  const isSelected = complement === cleanComp;
+                  return (
+                    <TouchableOpacity key={cleanComp} onPress={() => setComplement(cleanComp)} style={[styles.chip, isSelected ? styles.activeChip : styles.inactiveChip]}>
+                      <Text style={isSelected ? styles.activeText : styles.chipText}>{cleanComp}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+            {optionsList.length === 0 && !complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
 
             {/* 📝 PRÉFÉRENCE DE CUISINE (FACULTATIVE & DISCRÈTE) */}
             <View style={styles.customizationSection}>
@@ -566,8 +613,16 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                     ? `Repas — ${selectedVariant.name} (${portions} portion${portions > 1 ? "s" : ""})`
                     : `Repas (${portions} portion${portions > 1 ? "s" : ""})`}
                 </Text>
-                <Text style={styles.priceValue}>{`${totalPrice} FCFA`}</Text>
+                <Text style={styles.priceValue}>{`${pricePerUnit * portions} FCFA`}</Text>
               </View>
+              {optionUnitFee > 0 && selectedOption && (
+                <View style={styles.priceLine}>
+                  <Text style={styles.priceLabel}>
+                    {`Accompagnement — ${selectedOption.name} (${portions} portion${portions > 1 ? "s" : ""})`}
+                  </Text>
+                  <Text style={styles.priceValue}>{`+${safeFormatNumber(optionUnitFee * portions)} FCFA`}</Text>
+                </View>
+              )}
               <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
               {customizationNote.trim().length > 0 && (
                 <View style={styles.recapCustomizationLine}>
