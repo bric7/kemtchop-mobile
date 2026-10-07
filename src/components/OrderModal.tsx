@@ -204,7 +204,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   const calculateDeliveryPrice = () => {
     if (!userZone.trim()) return baseDeliveryPrice;
-    const isKnownZone = adminZones.some((z) => z.toLowerCase().trim() === userZone.trim().toLowerCase());
+    const inputZone = userZone.toLowerCase().trim();
+    const isKnownZone = adminZones.some((z) => {
+      const cleanZone = z.replace(/\s*\(.*?\)\s*/g, '').toLowerCase().trim();
+      return cleanZone === inputZone || z.toLowerCase().trim() === inputZone || z.toLowerCase().includes(inputZone);
+    });
     return isKnownZone ? baseDeliveryPrice : baseDeliveryPrice + 500;
   };
 
@@ -241,6 +245,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           phone: phone.trim(),
           affiliate_code: null,
           city_id: selectedCity?.id || null, // ✅ PASSAGE DE LA VILLE
+          delivery_fee: deliveryPrice, // ✅ FRAIS DE LIVRAISON TRANSMIS AU SERVEUR
         }),
       }, true);
 
@@ -252,7 +257,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         method: "POST",
         body: JSON.stringify({
           order_id: orderResult.order_id,
-          amount: finalTotal,
+          amount: orderResult.total_amount || finalTotal,
           phone: phone.trim(),
           description: `Acompte 40% - ${productName}${variantSuffix} (${portions} portions)`,
         }),
