@@ -595,13 +595,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 14,
     backgroundColor: "#f8fafc",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
     marginBottom: 8,
+    gap: 8,
   },
   variantOptionSelected: {
     backgroundColor: "#fef2f2",
@@ -611,6 +612,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    minWidth: 0,
   },
   radioCircle: {
     width: 20,
@@ -622,6 +624,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#ffffff",
     marginRight: 10,
+    flexShrink: 0,
   },
   radioCircleSelected: {
     borderColor: "#E31C25",
@@ -633,18 +636,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#E31C25",
   },
   variantNameText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#334155",
+    flexShrink: 1,
   },
   variantNameTextSelected: {
     color: "#991b1b",
     fontWeight: "800",
   },
   variantPriceText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#64748b",
+    flexShrink: 0,
+    marginLeft: 6,
   },
   variantPriceTextSelected: {
     color: "#E31C25",
