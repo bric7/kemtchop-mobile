@@ -292,9 +292,58 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
         <View style={styles.content}>
           <View style={styles.indicator} />
-          <Text style={styles.title}>{productName || "Plat"}</Text>
+          {/* En-tête : Nom du plat & Prix d'appel */}
+          <View style={styles.headerArea}>
+            <Text style={styles.title}>{productName || "Plat"}</Text>
+            <Text style={styles.headerPriceSubtitle}>
+              {variantsList.length > 1 ? "À partir de " : ""}
+              <Text style={styles.headerPriceHighlight}>{safeFormatNumber(pricePerUnit)} FCFA</Text>
+              {" / portion"}
+            </Text>
+          </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* 🍽️ CHOISISSEZ VOTRE PRÉPARATION (Cartes tactiles épurées - Uniquement si > 1 variante) */}
+            {variantsList.length > 1 && (
+              <View style={styles.variantSection}>
+                <Text style={styles.sectionHeading}>🍽️ Choisissez votre préparation :</Text>
+                <View style={styles.variantList}>
+                  {variantsList.map((v: any) => {
+                    const isSelected = selectedVariantId === v.id;
+                    const emoji = v.name.toLowerCase().includes('viande') ? '🥩 ' :
+                                  v.name.toLowerCase().includes('poisson') ? '🐟 ' :
+                                  v.name.toLowerCase().includes('crevette') ? '🍤 ' :
+                                  v.name.toLowerCase().includes('poulet') ? '🍗 ' : '';
+                    return (
+                      <TouchableOpacity
+                        key={v.id}
+                        onPress={() => setSelectedVariantId(v.id)}
+                        style={[
+                          styles.variantCard,
+                          isSelected && styles.variantCardSelected
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.variantCardLeft}>
+                          <Text style={[styles.variantCardName, isSelected && styles.variantCardNameSelected]}>
+                            {emoji}{v.name}
+                          </Text>
+                          <Text style={[styles.variantCardPrice, isSelected && styles.variantCardPriceSelected]}>
+                            {safeFormatNumber(v.price)} FCFA / portion
+                          </Text>
+                        </View>
+                        <View style={[styles.variantCheckBadge, isSelected && styles.variantCheckBadgeSelected]}>
+                          <Text style={[styles.variantCheckText, isSelected && styles.variantCheckTextSelected]}>
+                            {isSelected ? "✓" : ""}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* ✅ Masque complètement le sélecteur de date si isCatalogueProduct === false */}
             {isCatalogueProduct ? (
               <View style={styles.dateSelectorContainer}>
@@ -348,42 +397,13 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </View>
             ) : null}
 
-            {/* 🥩 SÉLECTEUR DE VARIANTE (ex: Viande, Poisson, Crevettes) */}
-            {variantsList.length > 0 && (
-              <View style={styles.variantSection}>
-                <Text style={styles.label}>🥩 Choisissez votre préparation :</Text>
-                <View style={styles.variantList}>
-                  {variantsList.map((v: any) => {
-                    const isSelected = selectedVariantId === v.id;
-                    return (
-                      <TouchableOpacity
-                        key={v.id}
-                        onPress={() => setSelectedVariantId(v.id)}
-                        style={[
-                          styles.variantOption,
-                          isSelected && styles.variantOptionSelected
-                        ]}
-                        activeOpacity={0.8}
-                      >
-                        <View style={styles.variantOptionLeft}>
-                          <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-                            {isSelected && <View style={styles.radioInnerCircle} />}
-                          </View>
-                          <Text style={[styles.variantNameText, isSelected && styles.variantNameTextSelected]}>
-                            {v.name}
-                          </Text>
-                        </View>
-                        <Text style={[styles.variantPriceText, isSelected && styles.variantPriceTextSelected]}>
-                          {safeFormatNumber(v.price)} FCFA
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
+            {/* 🔢 NOMBRE DE PORTIONS & RÉSUMÉ INSTANTANÉ */}
+            <Text style={styles.label}>{`🔢 Nombre de portions (${pricePerUnit} FCFA/portion) :`}</Text>
+            {selectedVariant && (
+              <Text style={styles.selectedVariantSummary}>
+                {`Sélection : `}<Text style={{ fontWeight: "800", color: "#E31C25" }}>{selectedVariant.name}</Text>{` · ${portions} portion${portions > 1 ? "s" : ""} = `}<Text style={{ fontWeight: "900", color: "#111827" }}>{safeFormatNumber(totalPrice)} FCFA</Text>
+              </Text>
             )}
-
-            <Text style={styles.label}>{`🍽️ Nombre de portions (${pricePerUnit} FCFA/portion) :`}</Text>
             <View style={styles.counterContainer}>
               <TouchableOpacity style={[styles.counterBtn, portions <= 1 && styles.counterBtnDisabled]} onPress={() => portions > 1 && setPortions(portions - 1)} disabled={portions <= 1}>
                 <Text style={styles.counterBtnText}>−</Text>
@@ -425,7 +445,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             </View>
             {!complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
 
-            {/* ✨ PRÉFÉRENCE DE PRÉPARATION (OPTIONNEL & PLIABLE) */}
+            {/* 📝 PRÉFÉRENCE DE CUISINE (FACULTATIVE & DISCRÈTE) */}
             <View style={styles.customizationSection}>
               <TouchableOpacity
                 style={styles.customizationToggleBtn}
@@ -433,18 +453,14 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                 activeOpacity={0.7}
               >
                 <Text style={styles.customizationToggleText}>
-                  {showCustomization ? "▼ ✨ Préférence de préparation" : "▶ ✨ Ajouter une préférence de préparation (optionnel)"}
+                  {showCustomization ? "▼ 📝 Une préférence pour la cuisine ? (facultatif)" : "▶ 📝 Une préférence pour la cuisine ? (facultatif)"}
                 </Text>
               </TouchableOpacity>
 
               {showCustomization && (
                 <View style={styles.customizationBox}>
-                  <Text style={styles.customizationTitle}>Comment souhaitez-vous votre plat ?</Text>
-                  <Text style={styles.customizationDisclaimer}>
-                    ✨ Nous ferons notre possible pour respecter votre demande.
-                  </Text>
                   <TextInput
-                    placeholder="Ex: un peu de sel, peu de cube, pas trop d'huile..."
+                    placeholder="Ex: sans cube, peu salé, peu d'huile..."
                     placeholderTextColor="#94a3b8"
                     style={styles.customizationInput}
                     value={customizationNote}
@@ -521,7 +537,6 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" },
   content: { backgroundColor: "white", borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 20, maxHeight: "90%" },
   indicator: { width: 50, height: 5, backgroundColor: "#ccc", borderRadius: 10, marginBottom: 15, alignSelf: "center" },
-  title: { fontSize: 22, fontWeight: "bold", color: "#333", textAlign: "center", marginBottom: 5 },
   scroll: { width: "100%" },
   label: { fontSize: 13, fontWeight: "bold", color: "#666", marginTop: 15, marginBottom: 8 },
   dateSelectorContainer: { marginBottom: 10 },
@@ -589,72 +604,82 @@ const styles = StyleSheet.create({
   recapCustomizationLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: "#fffbeb", borderRadius: 6 },
   recapCustomizationLabel: { fontSize: 11, fontWeight: "800", color: "#92400e" },
   recapCustomizationValue: { fontSize: 11, fontStyle: "italic", color: "#78350f", flex: 1, textAlign: "right", marginLeft: 8 },
-  variantSection: { width: "100%", marginTop: 8, marginBottom: 4 },
-  variantList: { flexDirection: "column", marginTop: 4 },
-  variantOption: {
+  headerArea: { alignItems: "center", marginBottom: 12 },
+  title: { fontSize: 22, fontWeight: "900", color: "#111827", textAlign: "center", letterSpacing: -0.5 },
+  headerPriceSubtitle: { fontSize: 13, fontWeight: "600", color: "#64748b", marginTop: 2 },
+  headerPriceHighlight: { fontSize: 16, fontWeight: "900", color: "#E31C25" },
+  sectionHeading: { fontSize: 13, fontWeight: "800", color: "#1e293b", marginBottom: 8, marginTop: 4 },
+  selectedVariantSummary: { fontSize: 12, color: "#64748b", marginTop: -4, marginBottom: 8, fontStyle: "italic" },
+  variantSection: { width: "100%", marginBottom: 12 },
+  variantList: { flexDirection: "column", gap: 8 },
+  variantCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "#f8fafc",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
     borderWidth: 1.5,
     borderColor: "#e2e8f0",
-    marginBottom: 8,
-    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  variantOptionSelected: {
-    backgroundColor: "#fef2f2",
+  variantCardSelected: {
+    backgroundColor: "#fff5f5",
     borderColor: "#E31C25",
+    borderWidth: 2,
   },
-  variantOptionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+  variantCardLeft: {
+    flexDirection: "column",
     flex: 1,
     minWidth: 0,
   },
-  radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
+  variantCardName: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#1e293b",
+    marginBottom: 2,
+  },
+  variantCardNameSelected: {
+    color: "#991b1b",
+    fontWeight: "900",
+  },
+  variantCardPrice: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748b",
+  },
+  variantCardPriceSelected: {
+    color: "#E31C25",
+    fontWeight: "800",
+  },
+  variantCheckBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
     borderColor: "#cbd5e1",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
-    marginRight: 10,
+    backgroundColor: "#f8fafc",
+    marginLeft: 12,
     flexShrink: 0,
   },
-  radioCircleSelected: {
+  variantCheckBadgeSelected: {
     borderColor: "#E31C25",
-  },
-  radioInnerCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
     backgroundColor: "#E31C25",
   },
-  variantNameText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#334155",
-    flexShrink: 1,
-  },
-  variantNameTextSelected: {
-    color: "#991b1b",
-    fontWeight: "800",
-  },
-  variantPriceText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#64748b",
-    flexShrink: 0,
-    marginLeft: 6,
-  },
-  variantPriceTextSelected: {
-    color: "#E31C25",
+  variantCheckText: {
+    fontSize: 14,
     fontWeight: "900",
+    color: "transparent",
+  },
+  variantCheckTextSelected: {
+    color: "#ffffff",
   },
 });
 
