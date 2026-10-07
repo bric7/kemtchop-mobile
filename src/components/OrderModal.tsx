@@ -1,6 +1,6 @@
 // app/components/OrderModal.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   KeyboardAvoidingView,
   Linking,
@@ -92,6 +92,36 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
   const [selectedCity, setSelectedCity] = useState<any | null>(null);
   const [customizationNote, setCustomizationNote] = useState("");
   const [showCustomization, setShowCustomization] = useState(false);
+
+  // 📍 Ville active et filtrage dynamique des quartiers
+  const activeCityName = selectedCity?.name || "Yaoundé";
+
+  const getCleanZoneName = (zone: string): string => {
+    return zone.replace(/\s*\(.*?\)\s*/g, '').trim();
+  };
+
+  const getZoneCityName = (zone: string): string => {
+    const match = zone.match(/\((.*?)\)/);
+    if (match && match[1]) return match[1].trim();
+    const zLower = zone.toLowerCase();
+    const doualaList = ['akwa', 'bonapriso', 'bonamoussadi', 'makepe', 'deido', 'bali', 'denver', 'kotto', 'logpom', 'new bell'];
+    if (doualaList.some(d => zLower.includes(d))) return "Douala";
+    return "Yaoundé";
+  };
+
+  const availableCityZones = useMemo(() => {
+    const currentCity = activeCityName.toLowerCase();
+    const filtered = adminZones.filter((z) => {
+      const zCity = getZoneCityName(z).toLowerCase();
+      return zCity.includes(currentCity) || currentCity.includes(zCity);
+    });
+    const cleanNames = filtered.map(z => getCleanZoneName(z)).filter(Boolean);
+    return Array.from(new Set(cleanNames));
+  }, [adminZones, activeCityName]);
+
+  const zonePlaceholder = activeCityName.toLowerCase().includes("douala")
+    ? "Ex: Akwa, Bonapriso, Makepe..."
+    : "Ex: Bastos, Odza, Mimboman...";
 
   const productName = isCatalogueProduct ? item?.name : item?.product?.name;
   const productId = isCatalogueProduct ? item?.id : item?.product?.id;
@@ -190,14 +220,14 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   const loadDeliveryZones = async () => {
     try {
-      const data = await apiFetch("/admin/settings/delivery-zones", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${await AsyncStorage.getItem("access_token") || ""}` },
-      });
-      setAdminZones(data.zones || []);
-      setBaseDeliveryPrice(data.price || 1000);
+      const data = await apiFetch("/orders/delivery-zones", { method: "GET" }, false)
+        .catch(() => apiFetch("/admin/settings/delivery-zones", { method: "GET" }, false));
+      if (data && data.zones) {
+        setAdminZones(data.zones || []);
+        setBaseDeliveryPrice(data.price || 1000);
+      }
     } catch {
-      setAdminZones(["Bastos", "Bonapriso", "Centre-ville", "Biymassi", "Mendong"]);
+      setAdminZones(["Bastos (Yaoundé)", "Odza (Yaoundé)", "Mimboman (Yaoundé)", "Akwa (Douala)", "Bonapriso (Douala)"]);
       setBaseDeliveryPrice(1000);
     }
   };
@@ -206,8 +236,8 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
     if (!userZone.trim()) return baseDeliveryPrice;
     const inputZone = userZone.toLowerCase().trim();
     const isKnownZone = adminZones.some((z) => {
-      const cleanZone = z.replace(/\s*\(.*?\)\s*/g, '').toLowerCase().trim();
-      return cleanZone === inputZone || z.toLowerCase().trim() === inputZone || z.toLowerCase().includes(inputZone);
+      const cleanZone = getCleanZoneName(z).toLowerCase().trim();
+      return cleanZone === inputZone || z.toLowerCase().trim() === inputZone || cleanZone.includes(inputZone) || inputZone.includes(cleanZone);
     });
     return isKnownZone ? baseDeliveryPrice : baseDeliveryPrice + 500;
   };
@@ -429,9 +459,48 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             </View>
 
             <Text style={styles.label}>📍 Votre quartier :</Text>
-            <TextInput placeholder="Ex: Bastos, Bonapriso..." style={styles.input} value={userZone} onChangeText={setUserZone} />
+
+            {/* 🏷️ Suggestion rapide des quartiers configurés pour la ville active */}
+            {availableCityZones.length > 0 && (
+              <View style={styles.quickZonesContainer}>
+                <Text style={styles.quickZonesHint}>
+                  {`Quartiers desservis à ${activeCityName} (cliquez pour sélectionner) :`}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickZonesScroll}>
+                  {availableCityZones.map((zoneName) => {
+                    const isSelected = userZone.trim().toLowerCase() === zoneName.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={zoneName}
+                        onPress={() => setUserZone(zoneName)}
+                        style={[styles.quickZoneChip, isSelected && styles.quickZoneChipActive]}
+                      >
+                        <Text style={[styles.quickZoneText, isSelected && styles.quickZoneTextActive]}>
+                          📍 {zoneName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            <TextInput 
+              placeholder={zonePlaceholder} 
+              style={styles.input} 
+              value={userZone} 
+              onChangeText={setUserZone} 
+            />
+
             <View style={styles.deliveryPriceInfo}>
-              <Text style={styles.deliveryPriceText}>{`🚚 Livraison : ${deliveryPrice} FCFA`}</Text>
+              <Text style={styles.deliveryPriceText}>
+                {`🚚 Livraison : ${safeFormatNumber(deliveryPrice)} FCFA`}
+                {userZone.trim() ? (
+                  deliveryPrice > baseDeliveryPrice 
+                    ? " ⚠️ (Hors-zone +500 F)" 
+                    : ` ✓ (Tarif standard ${activeCityName})`
+                ) : ""}
+              </Text>
             </View>
 
             <Text style={styles.label}>🥘 Accompagnement <Text style={styles.requiredText}>*</Text> :</Text>
@@ -685,6 +754,41 @@ const styles = StyleSheet.create({
   },
   variantCheckTextSelected: {
     color: "#ffffff",
+  },
+  quickZonesContainer: {
+    marginBottom: 8,
+  },
+  quickZonesHint: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748b",
+    marginBottom: 6,
+  },
+  quickZonesScroll: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  quickZoneChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginRight: 8,
+  },
+  quickZoneChipActive: {
+    backgroundColor: "#fee2e2",
+    borderColor: "#E31C25",
+  },
+  quickZoneText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#475569",
+  },
+  quickZoneTextActive: {
+    color: "#b91c1c",
+    fontWeight: "800",
   },
 });
 
