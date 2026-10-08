@@ -216,14 +216,34 @@ export default function DailyOfferGrid({
     );
   };
 
-  if (error) {
+  if (error && offers.length === 0) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+        <Ionicons name="cloud-offline-outline" size={54} color="#E31C25" />
+        <Text style={styles.errorTitle}>Connexion interrompue</Text>
         <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={onRefresh} activeOpacity={0.8}>
+          <Ionicons name="reload" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+          <Text style={styles.retryButtonText}>RÉESSAYER</Text>
+        </TouchableOpacity>
       </View>
     );
   }
+
+  const listHeader = (
+    <View>
+      {renderCustomHeader}
+      {error && offers.length > 0 && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="warning-outline" size={16} color="#b45309" style={{ marginRight: 6 }} />
+          <Text style={styles.errorBannerText}>Connexion instable • Menu en mémoire affiché</Text>
+          <TouchableOpacity onPress={onRefresh} style={styles.bannerRetryBtn}>
+            <Text style={styles.bannerRetryText}>ACTUALISER</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <FlatList
@@ -233,7 +253,7 @@ export default function DailyOfferGrid({
       numColumns={2}
       contentContainerStyle={styles.listContent}
       columnWrapperStyle={styles.row}
-      ListHeaderComponent={renderCustomHeader}
+      ListHeaderComponent={listHeader}
       initialNumToRender={2}
       maxToRenderPerBatch={2}
       windowSize={3}
@@ -434,13 +454,74 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 30,
+    minHeight: 300,
+  },
+  errorTitle: {
+    marginTop: 14,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0f172a',
+    textTransform: 'uppercase',
   },
   errorText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#ef4444',
+    marginTop: 6,
+    marginBottom: 20,
+    fontSize: 13,
+    color: '#64748b',
     textAlign: 'center',
+    maxWidth: 280,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E31C25',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    shadowColor: '#E31C25',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderRadius: 12,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  bannerRetryBtn: {
+    backgroundColor: '#fde68a',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  bannerRetryText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#78350f',
   },
   emptyContainer: {
     flex: 1,

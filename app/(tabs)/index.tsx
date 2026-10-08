@@ -2,8 +2,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, AppState } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import NetInfo from "@react-native-community/netinfo";
 
 import HomeHeader from "@/components/home/HomeHeader";
 import ReelsSection from "@/components/home/ReelsSection";
@@ -133,59 +134,77 @@ export default function HomeScreen() {
 
       // ⚡ Charger le catalogue et les offres en priorité (réponse rapide ~350ms)
       const [catalogueData, rawOffers] = await Promise.all([
-        api.get("/products/catalogue").catch(() => []),
-        api.get(cityId ? `/offers/upcoming?days=7&city_id=${cityId}` : "/offers/upcoming?days=7").catch(() => []),
+        api.get("/products/catalogue").catch((err) => {
+          console.warn("[HomeScreen] Échec chargement catalogue:", err);
+          return null;
+        }),
+        api.get(cityId ? `/offers/upcoming?days=7&city_id=${cityId}` : "/offers/upcoming?days=7").catch((err) => {
+          console.warn("[HomeScreen] Échec chargement offres:", err);
+          return null;
+        }),
       ]);
 
-      // ✅ MAPPAGE STRICT DU CATALOGUE : Neutralisation totale des champs d'offre
-      const safeCatalogue = Array.isArray(catalogueData) ? catalogueData : [];
-      const defaultFoodImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
-      const mappedCatalogue: CatalogueProduct[] = safeCatalogue.map((p: any) => {
-        const rawUrl = p.image_url ? String(p.image_url) : defaultFoodImage;
-        const secureUrl = rawUrl.startsWith("http://") ? "https://" + rawUrl.slice(7) : rawUrl;
-        return {
-          id: Number(p.id),
-          name: String(p.name || ""),
-          category: String(p.category || "Général"),
-          image_url: secureUrl,
-          price: Number(p.price || 2500),
-          complements: String(p.complements || "Standard"),
-          description: String(p.description || ""),
-          
-          // Neutralisation explicite pour empêcher tout rendu de date ou de statut
-          isCatalogueProduct: true,
-          status: "catalogue",
-          target_date: undefined, 
-          is_threshold_reached: false,
-          remaining_to_trigger: 0,
-          reserved_portions: 0,
-          price_per_unit: Number(p.price || 2500),
-          progress_percentage: 0,
-          remaining_capacity: 999,
-          variants: p.variants || [],
-          product: {
+      // ✅ MAPPAGE STRICT DU CATALOGUE : Ne JAMAIS écraser les plats existants si le fetch échoue
+      if (catalogueData && Array.isArray(catalogueData)) {
+        const defaultFoodImage = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=60";
+        const mappedCatalogue: CatalogueProduct[] = catalogueData.map((p: any) => {
+          const rawUrl = p.image_url ? String(p.image_url) : defaultFoodImage;
+          const secureUrl = rawUrl.startsWith("http://") ? "https://" + rawUrl.slice(7) : rawUrl;
+          return {
             id: Number(p.id),
             name: String(p.name || ""),
-            image_url: secureUrl,
             category: String(p.category || "Général"),
+            image_url: secureUrl,
+            price: Number(p.price || 2500),
             complements: String(p.complements || "Standard"),
+            description: String(p.description || ""),
+            
+            // Neutralisation explicite pour empêcher tout rendu de date ou de statut
+            isCatalogueProduct: true,
+            status: "catalogue",
+            target_date: undefined, 
+            is_threshold_reached: false,
+            remaining_to_trigger: 0,
+            reserved_portions: 0,
+            price_per_unit: Number(p.price || 2500),
+            progress_percentage: 0,
+            remaining_capacity: 999,
             variants: p.variants || [],
+            product: {
+              id: Number(p.id),
+              name: String(p.name || ""),
+              image_url: secureUrl,
+              category: String(p.category || "Général"),
+              complements: String(p.complements || "Standard"),
+              variants: p.variants || [],
+            }
+          };
+        });
+        setCatalogueProducts(mappedCatalogue);
+        setError(null);
+      } else {
+        setCatalogueProducts((prev) => {
+          if (prev.length === 0) {
+            setError("Impossible de charger le menu. Vérifie ta connexion.");
+          } else {
+            setError("Connexion instable • Données en mémoire");
           }
-        };
-      });
-      setCatalogueProducts(mappedCatalogue);
+          return prev;
+        });
+      }
 
       // Mappage des offres (pour "Menu du Jour")
-      const safeOffers = Array.isArray(rawOffers) ? rawOffers : [];
-      const mappedOffers: MappedOffer[] = safeOffers.map((offer: any) => ({
-        ...offer,
-        is_threshold_reached: offer.is_threshold_reached || false,
-        remaining_to_trigger: offer.remaining_to_trigger || 0,
-        reserved_portions: offer.reserved_portions || 0,
-        progress_percentage: offer.progress_percentage || 0,
-        remaining_capacity: offer.remaining_capacity || 0,
-      }));
-      setOffers(mappedOffers);
+      if (rawOffers && Array.isArray(rawOffers)) {
+        const mappedOffers: MappedOffer[] = rawOffers.map((offer: any) => ({
+          ...offer,
+          is_threshold_reached: offer.is_threshold_reached || false,
+          remaining_to_trigger: offer.remaining_to_trigger || 0,
+          reserved_portions: offer.reserved_portions || 0,
+          progress_percentage: offer.progress_percentage || 0,
+          remaining_capacity: offer.remaining_capacity || 0,
+        }));
+        setOffers(mappedOffers);
+      }
     } catch (err: any) {
       console.error("❌ Erreur chargement:", err);
       setError("Impossible de charger le menu.");
@@ -196,6 +215,31 @@ export default function HomeScreen() {
 
   useEffect(() => {
     refreshData();
+
+    // 1. Écouteur global de rafraîchissement
+    const unsubscribeRefresh = api.onGlobalRefresh(() => {
+      refreshData();
+    });
+
+    // 2. Écouteur de reconnexion réseau (NetInfo)
+    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        refreshData();
+      }
+    });
+
+    // 3. Écouteur de retour au premier plan (AppState)
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        refreshData();
+      }
+    });
+
+    return () => {
+      unsubscribeRefresh();
+      unsubscribeNetInfo();
+      appStateSub.remove();
+    };
   }, [refreshData]);
 
   // ✂️ LOGIQUE D'AFFICHAGE
@@ -288,6 +332,8 @@ export default function HomeScreen() {
         userName={userName}
         selectedCity={selectedCity}
         onPressCity={() => setCityModalVisible(true)}
+        onRefresh={() => refreshData()}
+        isRefreshing={loading}
       />
 
       <OfferGrid

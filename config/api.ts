@@ -35,23 +35,55 @@ export const getToken = async (): Promise<string | null> => {
 };
 
 // ============================================================
-// 🌐 FETCH CENTRALISÉ
+// 🔄 DÉCLENCHEUR GLOBAL DE RAFRAÎCHISSEMENT UNIVERSEL (Web + Mobile)
+// ============================================================
+const refreshListeners = new Set<() => void>();
+
+export const triggerGlobalRefresh = (): void => {
+  refreshListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (e) {
+      console.error('[API] Erreur refresh listener:', e);
+    }
+  });
+
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    try {
+      window.dispatchEvent(new CustomEvent('kemtchop:refresh'));
+    } catch {}
+  }
+};
+
+export const onGlobalRefresh = (callback: () => void): (() => void) => {
+  refreshListeners.add(callback);
+  return () => {
+    refreshListeners.delete(callback);
+  };
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ============================================================
+// 🌐 FETCH CENTRALISÉ AVEC RETRY AUTOMATIQUE
 // ============================================================
 export const apiFetch = async (
   endpoint: string,
   options: RequestInit = {},
-  auth: boolean = false
+  auth: boolean = false,
+  retryCount: number = 0
 ): Promise<any> => {
   const cleanBaseUrl = API_BASE_URL.replace(/\/+$/, '');
   const cleanEndpoint = endpoint.replace(/^\/+/, '');
   const url = `${cleanBaseUrl}/${cleanEndpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
 
   let token: string | null = null;
   if (auth) {
     token = await getToken();
   }
 
-  log(`📡 ${options.method || 'GET'} ${url}${auth ? ' 🔐' : ''}`);
+  log(`📡 ${method} ${url}${auth ? ' 🔐' : ''}`);
 
   try {
     const response = await fetch(url, {
@@ -70,18 +102,15 @@ export const apiFetch = async (
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
       try {
-        // On tente de parser le texte en JSON pour extraire le message d'erreur du backend
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.detail || errorData.message || errorMessage;
       } catch {
-        // Si ce n'est pas du JSON, on garde le texte brut
         errorMessage = responseText || errorMessage;
       }
       log(`❌ Erreur API: ${errorMessage}`);
       throw new Error(errorMessage);
     }
 
-    // Si la requête est réussie, on tente de retourner un objet JSON, sinon le texte brut
     try {
       return responseText ? JSON.parse(responseText) : null;
     } catch {
@@ -89,11 +118,23 @@ export const apiFetch = async (
     }
 
   } catch (error: any) {
-    if (error.message?.includes('Network request failed') || 
-        error.message?.includes('Failed to fetch') ||
-        error.message?.includes('Load failed')) {
+    const isNetworkError = 
+      error.message?.includes('Network request failed') || 
+      error.message?.includes('Failed to fetch') ||
+      error.message?.includes('Load failed') ||
+      error.message?.includes('NetworkError');
+
+    // ✅ Retry automatique sur les requêtes de lecture (GET) pour absorber les micro-coupures
+    if (method === 'GET' && isNetworkError && retryCount < 2) {
+      const delay = (retryCount + 1) * 700;
+      log(`⚠️ Micro-coupure détectée sur ${endpoint}. Réessai automatique (${retryCount + 1}/2) dans ${delay}ms...`);
+      await wait(delay);
+      return apiFetch(endpoint, options, auth, retryCount + 1);
+    }
+
+    if (isNetworkError) {
       const networkError = new Error(`Impossible de contacter le serveur (${cleanBaseUrl}). Vérifie ta connexion internet.`);
-      log(`❌ Erreur réseau: ${networkError.message}`);
+      log(`❌ Erreur réseau persistante: ${networkError.message}`);
       throw networkError;
     }
     throw error;
@@ -110,4 +151,6 @@ export const api = {
   patch: (endpoint: string, body: any, auth: boolean = false) => apiFetch(endpoint, { method: 'PATCH', body: JSON.stringify(body) }, auth),
   delete: (endpoint: string, auth: boolean = false) => apiFetch(endpoint, { method: 'DELETE' }, auth),
   getToken,
+  triggerGlobalRefresh,
+  onGlobalRefresh,
 };

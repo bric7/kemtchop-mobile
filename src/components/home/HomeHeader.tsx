@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { MapPin } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { MapPin, RefreshCw } from 'lucide-react-native';
 import { SearchBar } from '../SearchBar';
 
 interface HomeHeaderProps {
@@ -9,6 +9,8 @@ interface HomeHeaderProps {
   userName?: string | null;
   selectedCity?: { id: number; name: string } | null;
   onPressCity: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export default function HomeHeader({ 
@@ -16,7 +18,9 @@ export default function HomeHeader({
   onSearchChange, 
   userName,
   selectedCity,
-  onPressCity
+  onPressCity,
+  onRefresh,
+  isRefreshing = false,
 }: HomeHeaderProps) {
   return (
     <View style={styles.topBar}>
@@ -29,12 +33,31 @@ export default function HomeHeader({
           />
           <Text style={styles.logo}>KEMTCHOP</Text>
         </View>
-        <TouchableOpacity style={styles.cityPicker} onPress={onPressCity}>
-          <MapPin size={16} color="#E31C25" />
-          <Text style={styles.cityName}>
-            {selectedCity ? selectedCity.name : "Ville..."}
-          </Text>
-        </TouchableOpacity>
+
+        <View style={styles.rightActions}>
+          <TouchableOpacity style={styles.cityPicker} onPress={onPressCity}>
+            <MapPin size={15} color="#E31C25" />
+            <Text style={styles.cityName}>
+              {selectedCity ? selectedCity.name : "Ville..."}
+            </Text>
+          </TouchableOpacity>
+
+          {onRefresh && (
+            <TouchableOpacity 
+              style={styles.refreshButton} 
+              onPress={onRefresh}
+              activeOpacity={0.7}
+              disabled={isRefreshing}
+              accessibilityLabel="Actualiser le menu"
+            >
+              {isRefreshing ? (
+                <ActivityIndicator size={14} color="#E31C25" />
+              ) : (
+                <RefreshCw size={15} color="#475569" />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <SearchBar value={searchQuery} onChange={onSearchChange} />
@@ -75,6 +98,11 @@ const styles = StyleSheet.create({
     color: "#E31C25",
     letterSpacing: 0.5,
   },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   cityPicker: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -84,6 +112,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+  },
+  refreshButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cityName: {
     fontSize: 13,

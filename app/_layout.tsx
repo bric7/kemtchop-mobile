@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { CartProvider } from "@/context/CartContext";
+import OfflineBanner from "@/components/OfflineBanner";
 
 // Empêche la fermeture auto du splash pour charger les ressources
 SplashScreen.preventAutoHideAsync();
@@ -46,6 +47,7 @@ export default function RootLayout() {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <CartProvider>
         <View style={styles.webContainer}>
+          <OfflineBanner />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#f8fafc" } }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen

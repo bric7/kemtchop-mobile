@@ -7,7 +7,11 @@ import {
   StyleSheet,
   Text,
   View,
+  TouchableOpacity,
+  AppState,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import NetInfo from "@react-native-community/netinfo";
 import { safeFormatNumber } from "@/utils/format";
 import { api } from "../../config/api";
 
@@ -48,14 +52,36 @@ export default function OrdersScreen() {
     // 1. Premier chargement
     fetchOrders(true);
 
-    // 2. Mise à jour automatique toutes les 10 secondes (Polling)
-    // Cela permet de voir le changement "Acompte -> Cuisine" sans rafraîchir manuellement
+    // 2. Écouteur global de rafraîchissement
+    const unsubscribeRefresh = api.onGlobalRefresh(() => {
+      fetchOrders(false);
+    });
+
+    // 3. Écouteur réseau (reconnexion automatique)
+    const unsubscribeNetInfo = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        fetchOrders(false);
+      }
+    });
+
+    // 4. Écouteur retour au premier plan
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        fetchOrders(false);
+      }
+    });
+
+    // 5. Polling automatique toutes les 10 secondes
     const interval = setInterval(() => {
       fetchOrders(false);
     }, 10000);
 
-    // Nettoyage de l'intervalle si on quitte l'écran
-    return () => clearInterval(interval);
+    return () => {
+      unsubscribeRefresh();
+      unsubscribeNetInfo();
+      appStateSub.remove();
+      clearInterval(interval);
+    };
   }, []);
 
   // --- RAFRAÎCHISSEMENT MANUEL (Tirer vers le bas) ---
@@ -268,7 +294,21 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Suivi de mes plats</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Suivi de mes plats</Text>
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={() => {
+            setRefreshing(true);
+            fetchOrders(false);
+          }}
+          disabled={refreshing}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="reload" size={14} color="#E31C25" style={{ marginRight: 5 }} />
+          <Text style={styles.refreshButtonText}>Actualiser</Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id}
@@ -293,6 +333,32 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f8f8", paddingHorizontal: 15 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: 16,
+  },
+  refreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  refreshButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#E31C25",
+  },
   centered: {
     flex: 1,
     justifyContent: "center",
@@ -300,11 +366,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "900",
-    marginVertical: 20,
     color: "#000",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   emptyTitle: {
     fontSize: 28,
