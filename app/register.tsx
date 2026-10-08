@@ -20,6 +20,7 @@ import {
 
 // ✅ AJOUTE CETTE LIGNE ICI :
 import { apiFetch } from "../config/api";
+import NotificationService from "@/services/notifications";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -81,6 +82,9 @@ export default function RegisterScreen() {
         }
 
         await AsyncStorage.multiSet(sessionData);
+
+        // 🔔 Synchronisation du Token Expo Push
+        NotificationService.syncTokenWithBackend().catch(() => {});
 
         if (Platform.OS === "web") {
           router.replace("/(tabs)");

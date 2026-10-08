@@ -18,6 +18,7 @@ import { apiFetch } from "../../config/api";
 import ErrorBoundary from "./ErrorBoundary";
 import { showAlert } from "../utils/platform";
 import { safeFormatNumber } from "../utils/format";
+import { trackEvent, tagClarityEvent } from "../services/analytics";
 
 // ✅ GÉNÉRATEUR DE DATES BLINDÉ (Fuseau horaire Afrique/Douala)
 const generateNext7Days = (): { date: string; label: string }[] => {
@@ -175,6 +176,15 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         setVariantsList(itemVars);
         setSelectedVariantId(itemVars.length > 0 ? itemVars[0].id : null);
 
+        // 📊 Analytics & Clarity : Étape 4 Entonnoir
+        trackEvent({
+          event_type: 'MODAL_OPEN',
+          event_name: 'MODAL_OPEN',
+          product_id: Number(productId) || undefined,
+          product_name: productName,
+        }).catch(() => {});
+        tagClarityEvent('funnel_step', 'modal_open');
+
         AsyncStorage.getItem("user_phone").then((p) => p && setPhone(p)).catch(() => {});
         AsyncStorage.getItem("selected_city").then((c) => {
           if (c) {
@@ -321,6 +331,17 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       }, true);
 
       const paidDeposit = paymentResult.deposit_amount || deposit;
+
+      // 📊 Analytics & Clarity : Étape 5 Entonnoir
+      trackEvent({
+        phone: phone.trim(),
+        event_type: 'PAYMENT_INITIATED',
+        event_name: 'PAYMENT_INITIATED',
+        product_id: Number(productId) || undefined,
+        product_name: productName,
+        cart_value: paidDeposit,
+      }).catch(() => {});
+      tagClarityEvent('funnel_step', 'payment_initiated');
 
       if (paymentResult.payment_url) {
         showAlert("Paiement requis 💳", `Veuillez payer l'acompte de ${paidDeposit} FCFA.`, [

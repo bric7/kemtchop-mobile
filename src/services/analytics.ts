@@ -1,10 +1,5 @@
-// src/services/analytics.ts
 import { Platform } from 'react-native';
-
-// ✅ API_BASE : 10.0.2.2 pour Android emulator, localhost pour Web/iOS
-const API_BASE = Platform.OS === 'android' 
-  ? 'http://10.0.2.2:8000'  // Android emulator → localhost du PC
-  : 'http://localhost:8000'; // Web/iOS → localhost direct
+import { apiFetch } from '../../config/api';
 
 export type EventType = 
   | 'video_view'        // 👁️ Utilisateur a cliqué sur une vidéo
@@ -17,32 +12,30 @@ export type EventType =
   | 'search';           // 🔍 Recherche effectuée
 
 export interface AnalyticsEvent {
-  phone: string;                    // Identifiant unique de l'utilisateur
-  event_type: EventType;           // Type d'événement
+  phone?: string;                   // Identifiant unique de l'utilisateur
+  event_type: EventType | string;   // Type d'événement
+  event_name?: string;
   product_id?: number;             // ID du produit concerné (optionnel)
   product_name?: string;           // Nom du produit (pour logs)
   video_id?: number;               // ID de la vidéo (optionnel)
   cart_value?: number;             // Valeur du panier (pour abandon)
   affiliate_code?: string;         // Code affilié source (optionnel)
-  // ✅ RENOMMÉ : metadata → event_metadata (car 'metadata' est réservé dans SQLAlchemy)
-  event_metadata?: Record<string, any>;  // Données supplémentaires (ex: durée de vue)
+  event_metadata?: Record<string, any>;  // Données supplémentaires
 }
 
 export const trackEvent = async (event: AnalyticsEvent): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE}/analytics/track`, {
+    await apiFetch('/analytics/track', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...event,
-        // ✅ S'assurer que event_metadata est bien envoyé (même si vide)
+        event_name: event.event_name || event.event_type,
         event_metadata: event.event_metadata || {}
       }),
     });
-    return response.ok;
+    return true;
   } catch (error) {
-    console.log('⚠️ Analytics non envoyé (offline ou erreur):', error);
-    // Optionnel : stocker en local pour retry plus tard
+    console.log('⚠️ Analytics non envoyé:', error);
     return false;
   }
 };

@@ -5,6 +5,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
 import { CartProvider } from "@/context/CartContext";
 import OfflineBanner from "@/components/OfflineBanner";
+import NotificationService from "@/services/notifications";
 
 // Empêche la fermeture auto du splash pour charger les ressources
 SplashScreen.preventAutoHideAsync();
@@ -41,6 +42,19 @@ export default function RootLayout() {
         console.warn('[PWA] Erreur setup PWA web:', e);
       }
     }
+
+    // 3. Initialisation Push Notifications & écouteurs de statut de commandes
+    let cleanupListeners: (() => void) | undefined;
+    NotificationService.registerForPushNotifications().catch(() => {});
+    NotificationService.initNotificationListeners()
+      .then((cleanup) => {
+        cleanupListeners = cleanup;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (cleanupListeners) cleanupListeners();
+    };
   }, []);
 
   return (

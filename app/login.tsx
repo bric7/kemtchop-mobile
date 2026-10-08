@@ -21,6 +21,7 @@ import {
 
 // ✅ IMPORT API CONFIG (remplace les fetch locaux)
 import { apiFetch } from "../config/api";
+import NotificationService from "@/services/notifications";
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState("");
@@ -59,6 +60,9 @@ export default function LoginScreen() {
       ]);
 
       console.log("✅ Connexion réussie pour:", data.user_name);
+
+      // 🔔 Synchronisation du Token Expo Push
+      NotificationService.syncTokenWithBackend().catch(() => {});
 
       if (Platform.OS === "web") {
         router.replace("/(tabs)");
