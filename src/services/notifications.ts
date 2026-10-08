@@ -158,9 +158,19 @@ export const NotificationService = {
         }
       );
 
+      // 🔄 Écoute le renouvellement dynamique du token par l'OS
+      const tokenSubscription = Notifications.addPushTokenListener((tokenData) => {
+        console.log('🔄 Token push renouvelé par l’OS:', tokenData?.data);
+        if (tokenData?.data) {
+          AsyncStorage.setItem('expo_push_token', tokenData.data);
+          NotificationService.syncTokenWithBackend(tokenData.data);
+        }
+      });
+
       return () => {
         receivedSubscription.remove();
         responseSubscription.remove();
+        tokenSubscription.remove();
       };
     } catch (e) {
       return () => {};
