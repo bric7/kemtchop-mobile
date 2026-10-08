@@ -112,3 +112,38 @@ export const Analytics = {
       event_metadata: { query, results_count: resultsCount }  // ✅ event_metadata
     }),
 };
+
+// ============================================================
+// 👁️ HELPERS MICROSOFT CLARITY (SÉCURITÉ & DONNÉES ANONYMISÉES)
+// ============================================================
+
+/**
+ * Identifie l'utilisateur de manière opaque dans Clarity.
+ * N'envoie JAMAIS le numéro de téléphone direct en clair.
+ * Utilise un identifiant opaque `user_<id>` ou `anon_<id>`.
+ */
+export const identifyUserClarity = (userId?: number | string, anonId?: string): void => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).clarity) {
+    try {
+      const customId = userId ? `user_${userId}` : (anonId ? `anon_${anonId}` : undefined);
+      if (customId) {
+        (window as any).clarity('identify', customId);
+      }
+    } catch (err) {
+      console.warn('⚠️ [Clarity] Erreur identify:', err);
+    }
+  }
+};
+
+/**
+ * Associe des tags personnalisés (ex: page, catégorie) sans données sensibles.
+ */
+export const tagClarityEvent = (key: string, value: string): void => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).clarity) {
+    try {
+      (window as any).clarity('set', key, value);
+    } catch (err) {
+      console.warn('⚠️ [Clarity] Erreur tag:', err);
+    }
+  }
+};

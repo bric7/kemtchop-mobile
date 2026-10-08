@@ -22,6 +22,16 @@ if (fs.existsSync(indexPath)) {
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="https://api.kemtchop.shop" crossorigin />
     <link rel="dns-prefetch" href="https://api.kemtchop.shop" />
+    <link rel="preconnect" href="https://www.clarity.ms" crossorigin />
+
+    <!-- 👁️ Microsoft Clarity Analytics & Session Recording -->
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "yufnyakhs0");
+    </script>
 
     <!-- 🔍 Métadonnées SEO Fondamentales (Google, Bing, Yahoo) -->
     <meta name="description" content="Commandez vos plats camerounais authentiques et grillades en ligne sur KemTchop : Ndolè, Eru, Poisson braisé, Taro sauce jaune, Poulet DG, Koki. Livraison rapide à domicile et au bureau à Yaoundé et Douala." />
