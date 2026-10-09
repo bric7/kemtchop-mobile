@@ -75,7 +75,8 @@ const stateConfig = {
 export const CampaignCard = memo(function CampaignCard({ campaign, onPress }: CampaignCardProps) {
   const state = getMarmiteState(campaign);
   const config = stateConfig[state];
-  const imageUrl = campaign.recipe.image_url?.replace('http://', 'https://') || '';
+  const item = campaign.recipe || campaign.product;
+  const imageUrl = item?.image_url?.replace('http://', 'https://') || '';
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
@@ -96,7 +97,7 @@ export const CampaignCard = memo(function CampaignCard({ campaign, onPress }: Ca
       <View style={styles.content}>
         {/* 🍲 Nom du plat */}
         <Text style={styles.name} numberOfLines={2}>
-          🍲 {campaign.recipe.name}
+          🍲 {item?.name || ''}
         </Text>
 
         {/* 📊 Barre de progression (masquée si livrée) */}

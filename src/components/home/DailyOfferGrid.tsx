@@ -3,6 +3,7 @@ import { safeFormatNumber } from '@/utils/format';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '@/i18n/LanguageContext';
 
 // ✅ Interface élargie pour accepter à la fois les offres et les produits du catalogue
 interface DailyOfferItem {
@@ -40,17 +41,19 @@ interface DailyOfferGridProps {
 }
 
 // ✅ Fonction utilitaire pour formater la date de manière sécurisée
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string, isEnglish: boolean = false) => {
   try {
+    const locale = isEnglish ? 'en-US' : 'fr-FR';
     const date = new Date(dateString + "T00:00:00"); // Force l'heure locale pour éviter les décalages UTC
-    if (isNaN(date.getTime())) return "Date invalide";
-    return date.toLocaleDateString('fr-FR', { 
+    if (isNaN(date.getTime())) return isEnglish ? "Date unavailable" : "Date invalide";
+    return date.toLocaleDateString(locale, { 
+      timeZone: 'Africa/Douala',
       weekday: 'long', 
       day: 'numeric', 
       month: 'long' 
     });
   } catch (e) {
-    return "Date invalide";
+    return isEnglish ? "Date unavailable" : "Date invalide";
   }
 };
 
@@ -71,6 +74,7 @@ export default function DailyOfferGrid({
   getMediaUrl,
   renderCustomHeader,
 }: DailyOfferGridProps) {
+  const { t, isEnglish } = useTranslation();
   
   // Filtrer par recherche
   const filteredOffers = offers.filter((item) => {
@@ -118,14 +122,16 @@ export default function DailyOfferGrid({
             isSoldOut ? { backgroundColor: '#64748b' } : (confirmed ? styles.badgeConfirmed : styles.badgePending)
           ]}>
             <Text style={styles.floatingBadgeText}>
-              {isSoldOut ? '⛔ COMPLET' : (confirmed ? '🟢 CONFIRMÉ' : '🔥 RÉSERVATION')}
+              {isSoldOut 
+                ? (isEnglish ? '⛔ SOLD OUT' : '⛔ COMPLET') 
+                : (confirmed ? (isEnglish ? '🟢 CONFIRMED' : '🟢 CONFIRMÉ') : (isEnglish ? '🔥 PRE-ORDER' : '🔥 RÉSERVATION'))}
             </Text>
           </View>
 
           {/* Tag de portion en haut à droite */}
           <View style={styles.portionBadge}>
             <Text style={styles.portionBadgeText}>
-              {confirmed ? `${portions}/${capacity} vendues` : `${portions}/${threshold} portions`}
+              {confirmed ? `${portions}/${capacity} ${isEnglish ? 'sold' : 'vendues'}` : `${portions}/${threshold} ${t.common.portions}`}
             </Text>
           </View>
         </View>
@@ -134,13 +140,13 @@ export default function DailyOfferGrid({
         <View style={styles.content}>
           {/* Nom du plat */}
           <Text style={styles.productName} numberOfLines={1}>
-            {item.product?.name || item.name || 'Plat du jour'}
+            {item.product?.name || item.name || (isEnglish ? 'Special of the day' : 'Plat du jour')}
           </Text>
 
           {/* Date de livraison prévue si réservation */}
           {!item.isCatalogueProduct && item.target_date && (
             <Text style={styles.targetDate}>
-              📅 {formatDate(item.target_date)}
+              📅 {formatDate(item.target_date, isEnglish)}
             </Text>
           )}
 
@@ -151,11 +157,13 @@ export default function DailyOfferGrid({
               <View style={[styles.confirmedBox, isSoldOut && { backgroundColor: '#fef2f2' }]}>
                 <Ionicons 
                   name={isSoldOut ? "close-circle" : "checkmark-circle"} 
-                  size={14} 
-                  color={isSoldOut ? "#ef4444" : "#10B981"} 
+                  size={14 
+}                  color={isSoldOut ? "#ef4444" : "#10B981"} 
                 />
                 <Text style={[styles.confirmedLabel, isSoldOut && { color: "#dc2626" }]}>
-                  {isSoldOut ? 'Vente fermée (Capacité atteinte)' : `Garanti • Reste ${capacity - portions} portions`}
+                  {isSoldOut 
+                    ? (isEnglish ? 'Sold out (Capacity reached)' : 'Vente fermée (Capacité atteinte)') 
+                    : `${isEnglish ? 'Guaranteed • ' : 'Garanti • '}${isEnglish ? `${capacity - portions} portions left` : `Reste ${capacity - portions} portions`}`}
                 </Text>
               </View>
             ) : (
@@ -171,10 +179,12 @@ export default function DailyOfferGrid({
                 </View>
                 <View style={styles.progressRow}>
                   <Text style={styles.thresholdText}>
-                    Seuil : {threshold} portions
+                    {isEnglish ? 'Threshold' : 'Seuil'} : {threshold} {t.common.portions}
                   </Text>
                   <Text style={styles.remainingText}>
-                    {remaining <= 0 ? '🎉 Seuil garanti !' : `Encore ${remaining} pour valider`}
+                    {remaining <= 0 
+                      ? (isEnglish ? '🎉 Threshold reached!' : '🎉 Seuil garanti !') 
+                      : (isEnglish ? `${remaining} more to validate` : `Encore ${remaining} pour valider`)}
                   </Text>
                 </View>
               </View>
@@ -183,7 +193,7 @@ export default function DailyOfferGrid({
 
           {/* Ligne de Prix */}
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Prix portion</Text>
+            <Text style={styles.priceLabel}>{isEnglish ? 'Price per portion' : 'Prix portion'}</Text>
             <Text style={styles.price}>
               {safeFormatNumber(price)} F
             </Text>
@@ -208,7 +218,9 @@ export default function DailyOfferGrid({
               style={{ marginRight: 6 }} 
             />
             <Text style={styles.bigActionButtonText}>
-              {isSoldOut ? 'COMPLET' : (confirmed ? 'COMMANDER' : 'RÉSERVER')}
+              {isSoldOut 
+                ? (isEnglish ? 'SOLD OUT' : 'COMPLET') 
+                : (confirmed ? (isEnglish ? 'ORDER' : 'COMMANDER') : (isEnglish ? 'PRE-ORDER' : 'RÉSERVER'))}
             </Text>
           </TouchableOpacity>
         </View>
@@ -220,11 +232,11 @@ export default function DailyOfferGrid({
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="cloud-offline-outline" size={54} color="#E31C25" />
-        <Text style={styles.errorTitle}>Connexion interrompue</Text>
+        <Text style={styles.errorTitle}>{isEnglish ? 'Connection interrupted' : 'Connexion interrompue'}</Text>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={onRefresh} activeOpacity={0.8}>
           <Ionicons name="reload" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-          <Text style={styles.retryButtonText}>RÉESSAYER</Text>
+          <Text style={styles.retryButtonText}>{isEnglish ? 'RETRY' : 'RÉESSAYER'}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -236,9 +248,11 @@ export default function DailyOfferGrid({
       {error && offers.length > 0 && (
         <View style={styles.errorBanner}>
           <Ionicons name="warning-outline" size={16} color="#b45309" style={{ marginRight: 6 }} />
-          <Text style={styles.errorBannerText}>Connexion instable • Menu en mémoire affiché</Text>
+          <Text style={styles.errorBannerText}>
+            {isEnglish ? 'Unstable connection • Cached menu displayed' : 'Connexion instable • Menu en mémoire affiché'}
+          </Text>
           <TouchableOpacity onPress={onRefresh} style={styles.bannerRetryBtn}>
-            <Text style={styles.bannerRetryText}>ACTUALISER</Text>
+            <Text style={styles.bannerRetryText}>{isEnglish ? 'REFRESH' : 'ACTUALISER'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -268,7 +282,7 @@ export default function DailyOfferGrid({
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="restaurant-outline" size={64} color="#cbd5e1" />
-            <Text style={styles.emptyText}>Aucun plat disponible</Text>
+            <Text style={styles.emptyText}>{isEnglish ? 'No meals available' : 'Aucun plat disponible'}</Text>
           </View>
         )
       }

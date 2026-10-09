@@ -8,22 +8,22 @@ export const safeNavigate = {
       if (window.history.length > 1) {
         window.history.back();
       } else {
-        router.replace(fallback);
+        router.replace(fallback as any);
       }
     } else {
       try {
         router.back();
       } catch {
-        router.replace(fallback);
+        router.replace(fallback as any);
       }
     }
   },
   replace: (path: string) => {
     const normalized = path.startsWith("/") ? path : `/${path}`;
-    router.replace(normalized);
+    router.replace(normalized as any);
   },
   push: (path: string) => {
     const normalized = path.startsWith("/") ? path : `/${path}`;
-    router.push(normalized);
+    router.push(normalized as any);
   },
 };

@@ -4,17 +4,20 @@ import { View, Text, StyleSheet } from 'react-native';
 
 interface HeroCardProps {
   campaign?: any;
+  item?: any;
   onOrder?: (campaign: any) => void;
+  getMediaUrl?: (url: string) => string;
 }
 
-export default function HeroCard({ campaign, onOrder }: HeroCardProps) {
-  if (!campaign) return null;
+export default function HeroCard({ campaign, item, onOrder }: HeroCardProps) {
+  const activeItem = campaign || item;
+  if (!activeItem) return null;
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>🍲 {campaign.recipe?.name || 'Marmite'}</Text>
+      <Text style={styles.title}>🍲 {activeItem.recipe?.name || activeItem.product_name || activeItem.name || 'Marmite'}</Text>
       <Text style={styles.subtitle}>
-        {campaign.current_orders}/{campaign.minimum_orders} commandes
+        {activeItem.current_orders !== undefined ? `${activeItem.current_orders}/${activeItem.minimum_orders || 4} commandes` : `${activeItem.price || ''} FCFA`}
       </Text>
     </View>
   );

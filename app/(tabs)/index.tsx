@@ -285,7 +285,7 @@ export default function HomeScreen() {
     const pendingOffers = offers.filter((o) => 
       !o.is_threshold_reached && 
       ['proposed', 'reservation'].includes(o.status?.toLowerCase()) &&
-      o.target_date > businessTodayStr
+      o.target_date && o.target_date > businessTodayStr
     );
     if (pendingOffers.length === 0) return null;
     return [...pendingOffers].sort((a, b) => b.progress_percentage - a.progress_percentage)[0];
@@ -355,7 +355,7 @@ export default function HomeScreen() {
             
             {heroOffer && (
               <HeroOfferCard
-                offer={heroOffer}
+                offer={heroOffer as any}
                 onOrder={checkAuthAndOpenOrder}
                 getMediaUrl={getSafeMediaUrl}
               />

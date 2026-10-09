@@ -1,7 +1,11 @@
-// app/components/CampayWidget.tsx
 import { useEffect, useRef, useState } from "react";
 import { Platform, LogBox, Alert } from "react-native";
-import { log, formatPhoneForWhatsApp, getApiUrl } from "@/utils/platform";
+import { log } from "@/utils/platform";
+
+const formatPhoneForCampay = (p: string) => {
+  const cleaned = p.replace(/\D/g, "");
+  return cleaned.startsWith("237") ? cleaned : `237${cleaned}`;
+};
 
 // ? Ignorer les warnings React Native Web non critiques
 if (Platform.OS === 'web') {

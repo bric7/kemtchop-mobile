@@ -16,6 +16,7 @@ import {
 import { ChevronUp, ChevronDown } from "lucide-react-native";
 import OrderModal from "@/components/OrderModal";
 import ReelItem from "@/components/ReelItem";
+import { Reel } from "@/components/home/ReelsSection";
 import { api } from "../config/api";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -29,7 +30,7 @@ export default function ReelsScreen() {
   const [reels, setReels] = useState<Reel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | number | null>(null);
   const [reelHeight, setReelHeight] = useState(SCREEN_HEIGHT);
 
   const [modalVisible, setModalVisible] = useState(false);

@@ -3,6 +3,7 @@ import { safeFormatNumber } from '@/utils/format';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '@/i18n/LanguageContext';
 
 interface HeroOffer {
   id: string;
@@ -28,16 +29,18 @@ interface HeroOfferCardProps {
   getMediaUrl: (url: string | null | undefined) => string;
 }
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString: string, isEnglish: boolean = false) => {
   if (!dateString) return '';
+  const locale = isEnglish ? 'en-US' : 'fr-FR';
   try {
     const date = new Date(dateString + "T00:00:00");
     if (isNaN(date.getTime())) {
       const d2 = new Date(dateString);
       if (isNaN(d2.getTime())) return String(dateString);
-      return d2.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      return d2.toLocaleDateString(locale, { timeZone: 'Africa/Douala', weekday: 'long', day: 'numeric', month: 'long' });
     }
-    return date.toLocaleDateString('fr-FR', { 
+    return date.toLocaleDateString(locale, { 
+      timeZone: 'Africa/Douala',
       weekday: 'long', 
       day: 'numeric', 
       month: 'long' 
@@ -48,6 +51,8 @@ const formatDate = (dateString: string) => {
 };
 
 export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOfferCardProps) {
+  const { t, isEnglish } = useTranslation();
+  const portionsLabel = t.common.portions;
   if (!offer) return null;
 
   const confirmed = ['confirmed', 'cooking', 'ready', 'delivering', 'delivered'].includes(
@@ -81,26 +86,28 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
         {/* Badge statut */}
         <View style={[styles.badge, confirmed ? styles.badgeConfirmed : styles.badgePending]}>
           <Text style={styles.badgeText}>
-            {confirmed ? '✅ Production garantie' : '🔥 En réservation'}
+            {confirmed 
+              ? (isEnglish ? '✅ Guaranteed Production' : '✅ Production garantie')
+              : (isEnglish ? '🔥 Booking Open' : '🔥 En réservation')}
           </Text>
         </View>
 
         {/* Nom du plat */}
         <Text style={styles.productName}>
-          {offer.product?.name || 'Plat du jour'}
+          {offer.product?.name || (isEnglish ? "Special of the day" : 'Plat du jour')}
         </Text>
 
         {/* ✅ DATE EXPLICITE */}
         {offer.target_date && (
           <Text style={styles.targetDate}>
-            📅 {formatDate(offer.target_date)}
+            📅 {formatDate(offer.target_date, isEnglish)}
           </Text>
         )}
 
         {/* Progression ou disponibilité */}
         {confirmed ? (
           <Text style={styles.confirmedInfo}>
-            {offer.reserved_portions || 0}/{offer.max_capacity || 20} portions disponibles
+            {offer.reserved_portions || 0}/{offer.max_capacity || 20} {isEnglish ? 'portions available' : 'portions disponibles'}
           </Text>
         ) : (
           <>
@@ -113,10 +120,12 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
               />
             </View>
             <Text style={styles.thresholdInfo}>
-              {offer.reserved_portions || 0}/{offer.minimum_threshold || 4} portions
+              {offer.reserved_portions || 0}/{offer.minimum_threshold || 4} {portionsLabel}
             </Text>
             <Text style={styles.remainingInfo}>
-              Encore {offer.remaining_to_trigger || 0} pour déclencher la production
+              {isEnglish 
+                ? `Only ${offer.remaining_to_trigger || 0} more to start cooking`
+                : `Encore ${offer.remaining_to_trigger || 0} pour déclencher la production`}
             </Text>
           </>
         )}
@@ -124,7 +133,7 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
         {/* Prix et bouton */}
         <View style={styles.footer}>
           <View>
-            <Text style={styles.priceLabel}>Prix par portion</Text>
+            <Text style={styles.priceLabel}>{isEnglish ? 'Price per portion' : 'Prix par portion'}</Text>
             <Text style={styles.price}>
               {safeFormatNumber(price)} F
             </Text>
@@ -141,7 +150,7 @@ export default function HeroOfferCard({ offer, onOrder, getMediaUrl }: HeroOffer
               style={{ marginRight: 6 }} 
             />
             <Text style={styles.actionButtonText}>
-              {confirmed ? 'COMMANDER' : 'RÉSERVER'}
+              {confirmed ? (isEnglish ? 'ORDER' : 'COMMANDER') : (isEnglish ? 'RESERVE' : 'RÉSERVER')}
             </Text>
           </TouchableOpacity>
         </View>

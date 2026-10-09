@@ -18,7 +18,7 @@ import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function OrdersScreen() {
   const { t, isEnglish } = useTranslation();
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userPhone, setUserPhone] = useState<string | null>(null);
@@ -123,13 +123,15 @@ export default function OrdersScreen() {
       <View style={styles.orderCard}>
         <View style={styles.orderHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.productName}>{item.product_name || "Plat KemTchop"}</Text>
+            <Text style={styles.productName}>{item.product_name || (isEnglish ? "KemTchop Meal" : "Plat KemTchop")}</Text>
             <Text style={{ fontSize: 11, color: "#888", fontWeight: "600", marginTop: 2 }}>
-              {item.portions || 1} portion(s) • {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString('fr-FR') : "Aujourd'hui"}
+              {item.portions || 1} {Number(item.portions) > 1 ? t.common.portions : t.common.portion} • {item.delivery_date ? new Date(item.delivery_date).toLocaleDateString(isEnglish ? 'en-US' : 'fr-FR', { timeZone: 'Africa/Douala' }) : (isEnglish ? "Today" : "Aujourd'hui")}
             </Text>
             {item.customization_note ? (
               <View style={styles.customizationBadge}>
-                <Text style={styles.customizationBadgeTitle}>✨ Préférence demandée :</Text>
+                <Text style={styles.customizationBadgeTitle}>
+                  {isEnglish ? "✨ Cooking preference:" : "✨ Préférence demandée :"}
+                </Text>
                 <Text style={styles.customizationBadgeContent}>« {item.customization_note} »</Text>
               </View>
             ) : null}
@@ -260,7 +262,7 @@ export default function OrdersScreen() {
           )}
 
           <Text style={styles.detailTextSmall}>
-            📍 Destination: {item.zone || "Douala / Yaoundé"}
+            📍 {isEnglish ? "Destination:" : "Destination :"} {item.zone || "Douala / Yaoundé"}
           </Text>
 
           <Text
@@ -269,7 +271,17 @@ export default function OrdersScreen() {
               { color: isFailed ? "#E53E3E" : currentStep >= 2 ? "#E31C25" : "#666" },
             ]}
           >
-            Statut actuel: {item.status ? item.status.replace(/_/g, " ").toUpperCase() : "EN COURS"}
+            {isEnglish ? "Current status:" : "Statut actuel :"} {(() => {
+              const s = (item.status || "").toLowerCase().trim();
+              if (s.includes("confirmed")) return t.orderStatus.confirmed;
+              if (s.includes("prepar") || s.includes("cook")) return t.orderStatus.preparing;
+              if (s.includes("ready")) return t.orderStatus.ready;
+              if (s.includes("ship") || s.includes("deliveri")) return t.orderStatus.shipping;
+              if (s.includes("delivered") || s.includes("termine")) return t.orderStatus.delivered;
+              if (s.includes("cancel")) return t.orderStatus.cancelled;
+              if (s.includes("picked")) return t.orderStatus.pickedUp;
+              return isEnglish ? "In progress" : "En cours";
+            })()}
           </Text>
         </View>
       </View>
@@ -321,13 +333,14 @@ export default function OrdersScreen() {
       </View>
       <FlatList
         data={orders}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: any) => String(item.id)}
         renderItem={renderOrderItem}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            color="#E31C25"
+            tintColor="#E31C25"
+            colors={["#E31C25"]}
           />
         }
         ListEmptyComponent={

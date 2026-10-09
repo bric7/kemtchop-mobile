@@ -27,6 +27,7 @@ export interface Suggestion {
 export interface CollectivePot {
   id: string;
   product: RecipeSummary;
+  recipe?: RecipeSummary;
   target_date: string;
   status: CollectivePotStatusType;
 

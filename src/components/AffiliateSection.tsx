@@ -2,15 +2,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-const AffiliateSection = ({ user }) => {
+const AffiliateSection = ({ user }: { user: any }) => {
   // Fonction pour partager le lien sur WhatsApp/Réseaux
   const onShare = async () => {
     try {
       const result = await Share.share({
         message: `Salut ! Teste Kemtchop, c'est le feu ! 🍳 Utilise mon code ${user.affiliate_code} ou clique ici pour commander : https://kemtchop.com/home?ref=${user.affiliate_code}`,
       });
-    } catch (error) {
-      console.log(error.message);
+    } catch (error: any) {
+      console.log(error?.message);
     }
   };
 
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: "#FFF",
     borderRadius: 25,
-    borderWith: 1,
+    borderWidth: 1,
     borderColor: "#EEE",
   },
   businessHeader: {

@@ -1,27 +1,24 @@
-// app/hooks/useOfflineAwareFetch.ts
-// ?? Hook pour fetch avec gestion offline automatique
+ï»¿// app/hooks/useOfflineAwareFetch.ts
 import { useCallback } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { OfflineQueue } from "../services/offlineQueue";
-import { log, formatPhoneForWhatsApp, getApiUrl } from "../utils/platform";
+import { log } from "../utils/platform";
 
 export const useOfflineAwareFetch = () => {
   const fetchWithOfflineSupport = useCallback(
     async (
       endpoint: string,
       options: RequestInit = {},
-      priority: 'high' | 'medium' | 'low' = 'medium'
+      priority: 'high' | 'normal' | 'low' = 'normal'
     ) => {
-      // Vérifier la connexion réseau
       const netState = await NetInfo.fetch();
       const isConnected = netState.isConnected;
 
       if (!isConnected) {
-        // Mode offline : mettre en queue
-        log('[useOfflineAwareFetch] ?? Mode offline, mise en queue:', endpoint);
+        log('[useOfflineAwareFetch] Mode offline, mise en queue:', endpoint);
         await OfflineQueue.getInstance().enqueue({
           endpoint,
-          method: options.method || 'GET',
+          method: (options.method as any) || 'POST',
           payload: options.body ? JSON.parse(options.body as string) : undefined,
           priority,
         });
@@ -29,7 +26,6 @@ export const useOfflineAwareFetch = () => {
         throw new Error('OFFLINE_QUEUED');
       }
 
-      // Mode online : fetch normal
       try {
         const response = await fetch(endpoint, options);
         if (!response.ok) {
@@ -37,7 +33,7 @@ export const useOfflineAwareFetch = () => {
         }
         return await response.json();
       } catch (error) {
-        log('[useOfflineAwareFetch] ? Erreur fetch:', error);
+        log('[useOfflineAwareFetch] Erreur fetch:', error);
         throw error;
       }
     },

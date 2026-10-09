@@ -48,7 +48,7 @@ export default function TabLayout() {
           title: t("nav.orders"),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? "receipt" : "receipt-outline"}
+              name={(focused ? "receipt" : "receipt-text-outline") as any}
               size={24}
               color={color}
             />

@@ -302,9 +302,6 @@ function ReelItemComponent({ item, isActive, isNext = false, containerHeight, on
                 nativeControls={false}
                 allowsFullscreen={false}
                 allowsPictureInPicture={false}
-                onError={() => {
-                  console.warn('[ReelItem Native] Erreur VideoView');
-                }}
               />
             )
           )}

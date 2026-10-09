@@ -1,7 +1,7 @@
-﻿// src/services/offlineQueue.ts
+// src/services/offlineQueue.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { log, formatPhoneForWhatsApp, getApiUrl } from "../utils/platform";
+import { log } from "../utils/platform";
 import { api } from '../../config/api';
 // ? IMPORT CRITIQUE : Utiliser la config centralis�e
 // 🟢 Ajoute cette constante directement pour remplacer la configuration manquante :
