@@ -6,6 +6,7 @@ import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-c
 import { CartProvider } from "@/context/CartContext";
 import OfflineBanner from "@/components/OfflineBanner";
 import NotificationService from "@/services/notifications";
+import { LanguageProvider } from "@/i18n/LanguageContext";
 
 // Empêche la fermeture auto du splash pour charger les ressources
 SplashScreen.preventAutoHideAsync();
@@ -59,22 +60,24 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <CartProvider>
-        <View style={styles.webContainer}>
-          <OfflineBanner />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#f8fafc" } }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="reels"
-              options={{
-                presentation: "modal",
-                headerShown: false,
-                contentStyle: { backgroundColor: "#000" },
-              }}
-            />
-          </Stack>
-        </View>
-      </CartProvider>
+      <LanguageProvider>
+        <CartProvider>
+          <View style={styles.webContainer}>
+            <OfflineBanner />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#f8fafc" } }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="reels"
+                options={{
+                  presentation: "modal",
+                  headerShown: false,
+                  contentStyle: { backgroundColor: "#000" },
+                }}
+              />
+            </Stack>
+          </View>
+        </CartProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

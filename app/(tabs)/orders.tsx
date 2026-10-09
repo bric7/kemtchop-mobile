@@ -14,8 +14,10 @@ import { Ionicons } from "@expo/vector-icons";
 import NetInfo from "@react-native-community/netinfo";
 import { safeFormatNumber } from "@/utils/format";
 import { api } from "../../config/api";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function OrdersScreen() {
+  const { t, isEnglish } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,7 +152,7 @@ export default function OrdersScreen() {
                     currentStep >= 1 && styles.activeLabel,
                   ]}
                 >
-                  Acompte
+                  {isEnglish ? "Deposit" : "Acompte"}
                 </Text>
               </View>
               {/* Étape 2 : Cuisine */}
@@ -163,7 +165,7 @@ export default function OrdersScreen() {
                     currentStep >= 2 && styles.activeLabel,
                   ]}
                 >
-                  Cuisine
+                  {isEnglish ? "Kitchen" : "Cuisine"}
                 </Text>
               </View>
               {/* Étape 3 : Livraison */}
@@ -176,7 +178,7 @@ export default function OrdersScreen() {
                     currentStep >= 3 && styles.activeLabel,
                   ]}
                 >
-                  Livraison
+                  {isEnglish ? "Delivery" : "Livraison"}
                 </Text>
               </View>
               {/* Étape 4 : Terminé */}
@@ -189,7 +191,7 @@ export default function OrdersScreen() {
                     currentStep >= 4 && styles.activeLabel,
                   ]}
                 >
-                  Terminé
+                  {isEnglish ? "Delivered" : "Terminé"}
                 </Text>
               </View>
             </View>
@@ -209,24 +211,28 @@ export default function OrdersScreen() {
               color: isFailed ? "#C53030" : "#4A5568",
               textTransform: "uppercase"
             }}>
-              {isFailed ? "⚠️ Incident de Livraison Signalé" : "🚫 Commande Annulée"}
+              {isFailed 
+                ? (isEnglish ? "⚠️ Delivery Incident Reported" : "⚠️ Incident de Livraison Signalé") 
+                : (isEnglish ? "🚫 Order Cancelled" : "🚫 Commande Annulée")}
             </Text>
             {item.delivery_failure_reason && (
               <Text style={{ fontSize: 11, color: "#742A2A", marginTop: 2, fontWeight: "600" }}>
-                Motif : {item.delivery_failure_reason}
+                {isEnglish ? "Reason :" : "Motif :"} {item.delivery_failure_reason}
               </Text>
             )}
             <Text style={{ fontSize: 10, color: "#A0AEC0", marginTop: 4 }}>
               {isFailed
-                ? "L'équipe logistique vous recontacte pour réorganiser la remise."
-                : "Cette commande a été annulée."}
+                ? (isEnglish ? "Our logistics team will contact you to reschedule." : "L'équipe logistique vous recontacte pour réorganiser la remise.")
+                : (isEnglish ? "This order was cancelled." : "Cette commande a été annulée.")}
             </Text>
           </View>
         )}
 
         <View style={styles.orderDetails}>
           <View style={styles.row}>
-            <Text style={styles.detailText}>Total commande:</Text>
+            <Text style={styles.detailText}>
+              {isEnglish ? "Total order:" : "Total commande:"}
+            </Text>
             <Text style={styles.priceHighlight}>
               {safeFormatNumber(item.total_amount)} FCFA
             </Text>
@@ -234,7 +240,7 @@ export default function OrdersScreen() {
 
           <View style={[styles.row, { marginTop: 4 }]}>
             <Text style={styles.detailTextSmall}>
-              💰 Acompte payé (40%): {safeFormatNumber(Math.round(paidAmount))} FCFA
+              {isEnglish ? "💰 Deposit paid (40%):" : "💰 Acompte payé (40%):"} {safeFormatNumber(Math.round(paidAmount))} FCFA
             </Text>
             <Text style={{
               fontSize: 12,
@@ -242,14 +248,14 @@ export default function OrdersScreen() {
               color: isFullyPaid ? "#38A169" : "#E53E3E"
             }}>
               {isFullyPaid
-                ? "✅ Solde Réglé"
-                : `Solde à payer: ${safeFormatNumber(Math.round(rawBalance))} F`}
+                ? (isEnglish ? "✅ Fully Paid" : "✅ Solde Réglé")
+                : (isEnglish ? `Balance due: ${safeFormatNumber(Math.round(rawBalance))} F` : `Solde à payer: ${safeFormatNumber(Math.round(rawBalance))} F`)}
             </Text>
           </View>
 
           {item.assigned_driver_name && (
             <Text style={[styles.detailTextSmall, { color: "#2B6CB0", fontWeight: "700", marginTop: 6 }]}>
-              🛵 Livreur: {item.assigned_driver_name}
+              🛵 {isEnglish ? "Driver:" : "Livreur:"} {item.assigned_driver_name}
             </Text>
           )}
 
@@ -283,10 +289,10 @@ export default function OrdersScreen() {
       <View style={styles.centered}>
         <Text style={styles.emptyTitle}>KEMTCHOP</Text>
         <Text style={styles.emptyText}>
-          Vous n'avez pas encore passé de commande.
+          {isEnglish ? "You haven't placed an order yet." : "Vous n'avez pas encore passé de commande."}
         </Text>
         <Text style={styles.emptySubText}>
-          Vos plats en préparation apparaîtront ici !
+          {isEnglish ? "Your meals in preparation will appear here!" : "Vos plats en préparation apparaîtront ici !"}
         </Text>
       </View>
     );
@@ -295,7 +301,9 @@ export default function OrdersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Suivi de mes plats</Text>
+        <Text style={styles.title}>
+          {isEnglish ? "My Orders" : "Suivi de mes plats"}
+        </Text>
         <TouchableOpacity
           style={styles.refreshButton}
           onPress={() => {
@@ -306,7 +314,9 @@ export default function OrdersScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="reload" size={14} color="#E31C25" style={{ marginRight: 5 }} />
-          <Text style={styles.refreshButtonText}>Actualiser</Text>
+          <Text style={styles.refreshButtonText}>
+            {isEnglish ? "Refresh" : "Actualiser"}
+          </Text>
         </TouchableOpacity>
       </View>
       <FlatList
@@ -322,7 +332,9 @@ export default function OrdersScreen() {
         }
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Text style={{ color: "#999" }}>Aucune commande en cours...</Text>
+            <Text style={{ color: "#999" }}>
+              {isEnglish ? "No active orders..." : "Aucune commande en cours..."}
+            </Text>
           </View>
         }
         contentContainerStyle={styles.listPadding}

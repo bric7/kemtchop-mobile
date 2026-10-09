@@ -1,15 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 interface SettingsMenuProps {
   onLogout: () => void;
 }
 
 const SettingsMenu: React.FC<SettingsMenuProps> = ({ onLogout }) => {
+  const { t, isEnglish } = useTranslation();
+
   return (
     <View style={styles.menuSection}>
-      <Text style={styles.sectionLabel}>Paramètres</Text>
+      <Text style={styles.sectionLabel}>
+        {isEnglish ? "PREFERENCES & SETTINGS" : "PARAMÈTRES"}
+      </Text>
+
+      {/* 🌐 Choix de la langue bilingue FR / EN */}
+      <View style={{ marginBottom: 16 }}>
+        <Text style={styles.subSectionTitle}>
+          {t("profile.language")}
+        </Text>
+        <LanguageSelector variant="full" />
+      </View>
 
       {/* Notifications */}
       <TouchableOpacity style={styles.menuItem}>
@@ -18,7 +32,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onLogout }) => {
         </View>
         <Text style={styles.menuText}>Notifications</Text>
         <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>ACTIF</Text>
+          <Text style={styles.statusText}>{isEnglish ? "ACTIVE" : "ACTIF"}</Text>
         </View>
       </TouchableOpacity>
 
@@ -32,7 +46,9 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onLogout }) => {
         >
           <Ionicons name="log-out" size={22} color="#ff4444" />
         </View>
-        <Text style={[styles.menuText, { color: "#ff4444" }]}>Déconnexion</Text>
+        <Text style={[styles.menuText, { color: "#ff4444" }]}>
+          {t("profile.logout")}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -46,6 +62,12 @@ const styles = StyleSheet.create({
     color: "#bbb",
     textTransform: "uppercase",
     marginBottom: 12,
+  },
+  subSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
+    marginBottom: 8,
   },
   menuItem: {
     flexDirection: "row",

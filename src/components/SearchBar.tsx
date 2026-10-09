@@ -4,14 +4,16 @@ import { StyleSheet, TextInput, View } from "react-native";
 export const SearchBar = ({
   value,
   onChange,
+  placeholder = "Rechercher un plat...",
 }: {
   value: string;
   onChange: (t: string) => void;
+  placeholder?: string;
 }) => (
   <View style={styles.searchContainer}>
     <TextInput
       style={styles.searchInput}
-      placeholder="Rechercher un plat... (ex: Eru)"
+      placeholder={placeholder}
       value={value}
       onChangeText={onChange}
       placeholderTextColor="#999"

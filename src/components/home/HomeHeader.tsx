@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { MapPin, RefreshCw } from 'lucide-react-native';
 import { SearchBar } from '../SearchBar';
+import { LanguageSelector } from '../LanguageSelector';
+import { useTranslation } from '../../i18n/LanguageContext';
 
 interface HomeHeaderProps {
   searchQuery: string;
@@ -22,6 +24,8 @@ export default function HomeHeader({
   onRefresh,
   isRefreshing = false,
 }: HomeHeaderProps) {
+  const { t, isEnglish } = useTranslation();
+
   return (
     <View style={styles.topBar}>
       <View style={styles.headerRow}>
@@ -35,10 +39,13 @@ export default function HomeHeader({
         </View>
 
         <View style={styles.rightActions}>
+          {/* Sélecteur de langue bilingue FR / EN */}
+          <LanguageSelector variant="compact" />
+
           <TouchableOpacity style={styles.cityPicker} onPress={onPressCity}>
-            <MapPin size={15} color="#E31C25" />
+            <MapPin size={14} color="#E31C25" />
             <Text style={styles.cityName}>
-              {selectedCity ? selectedCity.name : "Ville..."}
+              {selectedCity ? selectedCity.name : (isEnglish ? "City..." : "Ville...")}
             </Text>
           </TouchableOpacity>
 
@@ -48,21 +55,27 @@ export default function HomeHeader({
               onPress={onRefresh}
               activeOpacity={0.7}
               disabled={isRefreshing}
-              accessibilityLabel="Actualiser le menu"
+              accessibilityLabel={isEnglish ? "Refresh menu" : "Actualiser le menu"}
             >
               {isRefreshing ? (
                 <ActivityIndicator size={14} color="#E31C25" />
               ) : (
-                <RefreshCw size={15} color="#475569" />
+                <RefreshCw size={14} color="#475569" />
               )}
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <SearchBar value={searchQuery} onChange={onSearchChange} />
+      <SearchBar 
+        value={searchQuery} 
+        onChange={onSearchChange} 
+        placeholder={t('home.searchPlaceholder')}
+      />
       {userName && searchQuery === '' && (
-        <Text style={styles.welcomeText}>Salut, {userName} ! 👋</Text>
+        <Text style={styles.welcomeText}>
+          {isEnglish ? `Hi, ${userName} ! 👋` : `Salut, ${userName} ! 👋`}
+        </Text>
       )}
     </View>
   );

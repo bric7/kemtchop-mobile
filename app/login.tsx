@@ -22,8 +22,11 @@ import {
 // ✅ IMPORT API CONFIG (remplace les fetch locaux)
 import { apiFetch } from "../config/api";
 import NotificationService from "@/services/notifications";
+import { useTranslation } from "@/i18n/LanguageContext";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function LoginScreen() {
+  const { t, isEnglish } = useTranslation();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +39,7 @@ export default function LoginScreen() {
 
     const trimmedPhone = phone.trim();
     if (!trimmedPhone || !password) {
-      setErrorMessage("Remplis ton numéro et ton mot de passe.");
+      setErrorMessage(isEnglish ? "Please enter your phone number and password." : "Remplis ton numéro et ton mot de passe.");
       return;
     }
 
@@ -67,9 +70,11 @@ export default function LoginScreen() {
       if (Platform.OS === "web") {
         router.replace("/(tabs)");
       } else {
-        Alert.alert("Succès", `Content de vous revoir, ${data.user_name || "cher client"} !`, [
-          { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
-        ]);
+        Alert.alert(
+          isEnglish ? "Success" : "Succès",
+          isEnglish ? `Welcome back, ${data.user_name || "dear customer"}!` : `Content de vous revoir, ${data.user_name || "cher client"} !`,
+          [{ text: isEnglish ? "Let's go!" : "C'est parti !", onPress: () => router.replace("/(tabs)") }]
+        );
       }
     } catch (error: any) {
       console.error("Erreur login:", error);
@@ -81,10 +86,12 @@ export default function LoginScreen() {
         msg.toLowerCase().includes("unauthorized")
       ) {
         setErrorMessage(
-          "Numéro ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire ci-dessous."
+          isEnglish
+            ? "Incorrect phone number or password. If you don't have an account, please register below."
+            : "Numéro ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire ci-dessous."
         );
       } else {
-        setErrorMessage(msg || "Le serveur KEMTCHOP est injoignable.");
+        setErrorMessage(msg || (isEnglish ? "Unable to reach KEMTCHOP server." : "Le serveur KEMTCHOP est injoignable."));
       }
     } finally {
       setLoading(false);
@@ -110,17 +117,21 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ width: "100%", alignItems: "center" }}>
+            <View style={{ alignSelf: "flex-end", marginBottom: 16 }}>
+              <LanguageSelector variant="compact" />
+            </View>
+
             <Image
               source={require("../assets/images/icon.png")}
               style={{ width: 84, height: 84, borderRadius: 20, marginBottom: 16 }}
               resizeMode="cover"
             />
             <Text style={styles.title}>KEMTCHOP</Text>
-            <Text style={styles.subtitle}>Connectez-vous pour commander</Text>
+            <Text style={styles.subtitle}>{t.auth.loginSubtitle}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Numéro de téléphone"
+              placeholder={t.auth.phoneLabel}
               keyboardType="phone-pad"
               value={phone}
               onChangeText={(text) => {
@@ -134,7 +145,7 @@ export default function LoginScreen() {
             <View style={styles.passwordWrapper}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Mot de passe"
+                placeholder={t.auth.passwordLabel}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={(text) => {
@@ -169,14 +180,14 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>SE CONNECTER</Text>
+                <Text style={styles.buttonText}>{t.auth.loginBtn.toUpperCase()}</Text>
               )}
             </TouchableOpacity>
 
             {/* Liens de secours */}
             <View style={styles.footer}>
               <TouchableOpacity onPress={() => router.push("/forgot-password")}>
-                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+                <Text style={styles.forgotText}>{t.auth.forgotPassword}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -184,7 +195,7 @@ export default function LoginScreen() {
                 onPress={() => router.push("/register")}
               >
                 <Text style={styles.linkText}>
-                  Pas de compte ? Inscrivez-vous
+                  {t.auth.noAccount}
                 </Text>
               </TouchableOpacity>
             </View>

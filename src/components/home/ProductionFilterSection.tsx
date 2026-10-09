@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from '../../i18n/LanguageContext';
 
 export type OfferDimension = "🔥 À réserver" | "🍲 Menu du Jour";
 
@@ -13,7 +14,13 @@ interface ProductionFilterSectionProps {
   reservationCount?: number;
 }
 
-const CATEGORIES = ["Tout", "Plats Locaux", "Grillades", "Boissons", "Accompagnements"];
+const CATEGORY_KEYS = [
+  { id: "Tout", labelFr: "Tout", labelEn: "All" },
+  { id: "Plats Locaux", labelFr: "Plats Locaux", labelEn: "Local Dishes" },
+  { id: "Grillades", labelFr: "Grillades", labelEn: "Grills" },
+  { id: "Boissons", labelFr: "Boissons", labelEn: "Drinks" },
+  { id: "Accompagnements", labelFr: "Accompagnements", labelEn: "Sides" },
+];
 
 export default function ProductionFilterSection({
   productionDimension,
@@ -23,6 +30,7 @@ export default function ProductionFilterSection({
   dailyCount = 0,
   reservationCount = 0,
 }: ProductionFilterSectionProps) {
+  const { isEnglish } = useTranslation();
   const isDaily = productionDimension === "🍲 Menu du Jour";
   const isReserve = productionDimension === "🔥 À réserver";
 
@@ -30,8 +38,12 @@ export default function ProductionFilterSection({
     <View style={styles.container}>
       {/* 🏷️ Titre de section explicatif */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionOverline}>MODES DE SERVICE</Text>
-        <Text style={styles.sectionTitle}>Comment souhaitez-vous commander ?</Text>
+        <Text style={styles.sectionOverline}>
+          {isEnglish ? "SERVICE OPTIONS" : "MODES DE SERVICE"}
+        </Text>
+        <Text style={styles.sectionTitle}>
+          {isEnglish ? "How would you like to order?" : "Comment souhaitez-vous commander ?"}
+        </Text>
       </View>
 
       {/* 🎛️ Les 2 Grands Boutons / Cartes de Sélection de Mode */}
@@ -48,22 +60,24 @@ export default function ProductionFilterSection({
             </View>
             <View style={[styles.modeTag, isDaily ? styles.modeTagDailyActive : styles.modeTagInactive]}>
               <Text style={[styles.modeTagText, isDaily ? styles.modeTagTextActive : styles.modeTagTextInactive]}>
-                {dailyCount > 0 ? "EN DIRECT" : "AUJOURD'HUI"}
+                {dailyCount > 0 ? (isEnglish ? "LIVE" : "EN DIRECT") : (isEnglish ? "TODAY" : "AUJOURD'HUI")}
               </Text>
             </View>
           </View>
 
           <Text style={[styles.modeTitle, isDaily && styles.modeTitleActive]}>
-            Menu du Jour
+            {isEnglish ? "Daily Specials" : "Menu du Jour"}
           </Text>
           <Text style={[styles.modeSubtitle, isDaily && styles.modeSubtitleActive]}>
-            Livraison immédiate
+            {isEnglish ? "Instant delivery" : "Livraison immédiate"}
           </Text>
 
           <View style={styles.modeStatusRow}>
             <View style={[styles.statusDot, { backgroundColor: dailyCount > 0 ? '#10B981' : '#94a3b8' }]} />
             <Text style={[styles.modeStatusText, isDaily && styles.modeStatusTextActive]}>
-              {dailyCount > 0 ? `${dailyCount} plat(s) prêt(s)` : "Prochain service demain"}
+              {dailyCount > 0 
+                ? (isEnglish ? `${dailyCount} dish(es) ready` : `${dailyCount} plat(s) prêt(s)`) 
+                : (isEnglish ? "Next service tomorrow" : "Prochain service demain")}
             </Text>
           </View>
         </TouchableOpacity>
@@ -80,22 +94,24 @@ export default function ProductionFilterSection({
             </View>
             <View style={[styles.modeTag, isReserve ? styles.modeTagReserveActive : styles.modeTagInactive]}>
               <Text style={[styles.modeTagText, isReserve ? styles.modeTagTextActive : styles.modeTagTextInactive]}>
-                RÉSERVATION
+                {isEnglish ? "PRE-ORDER" : "RÉSERVATION"}
               </Text>
             </View>
           </View>
 
           <Text style={[styles.modeTitle, isReserve && styles.modeTitleActive]}>
-            À Réserver
+            {isEnglish ? "Pre-order" : "À Réserver"}
           </Text>
           <Text style={[styles.modeSubtitle, isReserve && styles.modeSubtitleActive]}>
-            Dès demain (J+1)
+            {isEnglish ? "From tomorrow (D+1)" : "Dès demain (J+1)"}
           </Text>
 
           <View style={styles.modeStatusRow}>
             <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
             <Text style={[styles.modeStatusText, isReserve && styles.modeStatusTextActive]}>
-              {reservationCount > 0 ? `${reservationCount} recettes ouvertes` : "Toutes les recettes"}
+              {reservationCount > 0 
+                ? (isEnglish ? `${reservationCount} recipes open` : `${reservationCount} recettes ouvertes`) 
+                : (isEnglish ? "All recipes" : "Toutes les recettes")}
             </Text>
           </View>
         </TouchableOpacity>
@@ -111,32 +127,40 @@ export default function ProductionFilterSection({
         />
         <View style={styles.explainerContent}>
           <Text style={[styles.explainerTitle, { color: isDaily ? "#065f46" : "#991b1b" }]}>
-            {isDaily ? "⚡ Menu du Jour (Production confirmée)" : "📅 Réservation de portions (Seuil minimum : 4)"}
+            {isDaily 
+              ? (isEnglish ? "⚡ Daily Specials (Cooking confirmed)" : "⚡ Menu du Jour (Production confirmée)") 
+              : (isEnglish ? "📅 Portion Pre-orders (Min. threshold : 4)" : "📅 Réservation de portions (Seuil minimum : 4)")}
           </Text>
           <Text style={[styles.explainerText, { color: isDaily ? "#047857" : "#7f1d1d" }]}>
             {isDaily
-              ? "Plat garanti pour aujourd'hui. Commandez vos portions directement dans la limite de la capacité restante !"
-              : "Réservez vos portions individuelles à l'avance. Dès que 4 portions sont atteintes (même par une seule commande), la production est garantie pour cette date !"}
+              ? (isEnglish 
+                  ? "Dish guaranteed for today. Order your portions directly within the available capacity!" 
+                  : "Plat garanti pour aujourd'hui. Commandez vos portions directement dans la limite de la capacité restante !")
+              : (isEnglish 
+                  ? "Pre-order individual portions in advance. As soon as 4 portions are reached, cooking is 100% confirmed!" 
+                  : "Réservez vos portions individuelles à l'avance. Dès que 4 portions sont atteintes (même par une seule commande), la production est garantie pour cette date !")}
           </Text>
         </View>
       </View>
 
       {/* 🏷️ Filtres Catégories sous forme de pilules raffinées */}
       <View style={styles.categoriesHeader}>
-        <Text style={styles.categoriesLabel}>Catégories :</Text>
+        <Text style={styles.categoriesLabel}>
+          {isEnglish ? "Categories :" : "Catégories :"}
+        </Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-        {CATEGORIES.map((cat) => {
-          const isActive = culinaryCategory === cat;
+        {CATEGORY_KEYS.map((catItem) => {
+          const isActive = culinaryCategory === catItem.id;
           return (
             <TouchableOpacity
-              key={cat}
-              onPress={() => setCulinaryCategory(cat)}
+              key={catItem.id}
+              onPress={() => setCulinaryCategory(catItem.id)}
               style={[styles.catChip, isActive && styles.catChipActive]}
               activeOpacity={0.7}
             >
               <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>
-                {cat}
+                {isEnglish ? catItem.labelEn : catItem.labelFr}
               </Text>
             </TouchableOpacity>
           );

@@ -19,12 +19,14 @@ import ErrorBoundary from "./ErrorBoundary";
 import { showAlert } from "../utils/platform";
 import { safeFormatNumber } from "../utils/format";
 import { trackEvent, tagClarityEvent } from "../services/analytics";
+import { useTranslation } from "../i18n/LanguageContext";
 
 // ✅ GÉNÉRATEUR DE DATES BLINDÉ (Fuseau horaire Afrique/Douala)
-const generateNext7Days = (): { date: string; label: string }[] => {
+const generateNext7Days = (isEnglish: boolean = false): { date: string; label: string }[] => {
   const dates = [];
   const now = new Date();
-  const formatter = new Intl.DateTimeFormat('fr-FR', {
+  const locale = isEnglish ? 'en-US' : 'fr-FR';
+  const formatter = new Intl.DateTimeFormat(locale, {
     timeZone: 'Africa/Douala',
     year: 'numeric',
     month: '2-digit',
@@ -46,7 +48,7 @@ const generateNext7Days = (): { date: string; label: string }[] => {
     const nextDay = String(nextDate.getDate()).padStart(2, '0');
     const dateStr = `${nextYear}-${nextMonth}-${nextDay}`;
     
-    const label = nextDate.toLocaleDateString('fr-FR', {
+    const label = nextDate.toLocaleDateString(locale, {
       timeZone: 'Africa/Douala',
       weekday: 'short',
       day: 'numeric',
@@ -59,23 +61,55 @@ const generateNext7Days = (): { date: string; label: string }[] => {
 };
 
 // ✅ LOGIQUE MARKETING EXACTE
-const getMarketingMessage = (offer: any, threshold: number = 4) => {
-  if (!offer) return { text: "Soyez le premier à réserver !", color: "#64748b" };
+const getMarketingMessage = (offer: any, threshold: number = 4, isEnglish: boolean = false) => {
+  if (!offer) {
+    return {
+      text: isEnglish ? "Be the first to reserve!" : "Soyez le premier à réserver !",
+      color: "#64748b"
+    };
+  }
   if (offer.status === 'confirmed' || offer.is_threshold_reached) {
-    return { text: "✅ Production garantie", color: "#10B981" };
+    return {
+      text: isEnglish ? "✅ Production guaranteed" : "✅ Production garantie",
+      color: "#10B981"
+    };
   }
   const reserved = offer.reserved_portions || 0;
   const remaining = threshold - reserved;
-  if (remaining === 3) return { text: "1/4 portions réservées — encore 3", color: "#64748b" };
-  if (remaining === 2) return { text: "2/4 — encore 2 pour lancer la production", color: "#F59E0B" };
-  if (remaining === 1) return { text: "🔥 Plus qu'1 portion pour lancer la production !", color: "#EF4444" };
-  if (remaining <= 0) return { text: "🎉 Production confirmée !", color: "#10B981" };
-  return { text: "Soyez le premier à réserver !", color: "#64748b" };
+  if (remaining === 3) {
+    return {
+      text: isEnglish ? "1/4 portions reserved — 3 to go" : "1/4 portions réservées — encore 3",
+      color: "#64748b"
+    };
+  }
+  if (remaining === 2) {
+    return {
+      text: isEnglish ? "2/4 — 2 more to launch cooking" : "2/4 — encore 2 pour lancer la production",
+      color: "#F59E0B"
+    };
+  }
+  if (remaining === 1) {
+    return {
+      text: isEnglish ? "🔥 Only 1 portion left to launch cooking!" : "🔥 Plus qu'1 portion pour lancer la production !",
+      color: "#EF4444"
+    };
+  }
+  if (remaining <= 0) {
+    return {
+      text: isEnglish ? "🎉 Production confirmed!" : "🎉 Production confirmée !",
+      color: "#10B981"
+    };
+  }
+  return {
+    text: isEnglish ? "Be the first to reserve!" : "Soyez le premier à réserver !",
+    color: "#64748b"
+  };
 };
 
 const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
+  const { t, isEnglish } = useTranslation();
   const isCatalogueProduct = item?.isCatalogueProduct ?? (item?.reel_category === 'CATALOG_PRODUCT' || !item?.daily_offer_id);
-  const fallbackDates = generateNext7Days();
+  const fallbackDates = useMemo(() => generateNext7Days(isEnglish), [isEnglish]);
   
   const [existingOffers, setExistingOffers] = useState<any[]>([]);
   const [availabilityDates, setAvailabilityDates] = useState<any[]>([]);
@@ -156,7 +190,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
     ? (item?.complements || item?.product?.complements) 
     : (item?.product?.complements || item?.complements));
 
-  let finalComplements = "Riz, Plantain, Bâton de manioc";
+  let finalComplements = isEnglish ? "Rice, Fried plantains, Cassava sticks" : "Riz, Plantain, Bâton de manioc";
   if (Array.isArray(rawComplements) && rawComplements.length > 0) {
     finalComplements = rawComplements.join(", ");
   } else if (typeof rawComplements === "string" && rawComplements.trim() !== "") {
@@ -167,7 +201,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
   const selectedDateStr = datesList[selectedDateIndex]?.date;
   const currentOffer = existingOffers.find((o: any) => o.target_date === selectedDateStr && Number(o.product?.id) === Number(productId));
-  const marketingState = getMarketingMessage(currentOffer, 4);
+  const marketingState = getMarketingMessage(currentOffer, 4, isEnglish);
 
   useEffect(() => {
     if (visible) {
@@ -287,11 +321,17 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       : complement;
 
     if (!chosenComplement) {
-      showAlert("Choix obligatoire", "Veuillez sélectionner un accompagnement.");
+      showAlert(
+        isEnglish ? "Choice required" : "Choix obligatoire",
+        isEnglish ? "Please select a side dish." : "Veuillez sélectionner un accompagnement."
+      );
       return;
     }
     if (!userZone || !phone) {
-      showAlert("Oups !", "Veuillez remplir votre quartier et votre numéro de téléphone.");
+      showAlert(
+        isEnglish ? "Oops!" : "Oups !",
+        isEnglish ? "Please provide your delivery area and phone number." : "Veuillez remplir votre quartier et votre numéro de téléphone."
+      );
       return;
     }
 
@@ -316,17 +356,21 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
         }),
       }, true);
 
-      if (!orderResult.order_id) throw new Error("Échec création commande");
+      if (!orderResult.order_id) throw new Error(isEnglish ? "Order creation failed" : "Échec création commande");
 
       // ✅ SebPay : le backend calcule lui-même l'acompte de 40 % à partir du TOTAL
       const variantSuffix = selectedVariant ? ` (${selectedVariant.name})` : "";
+      const paymentDescription = isEnglish
+        ? `Deposit 40% - ${productName}${variantSuffix} (${portions} portion${portions > 1 ? "s" : ""})`
+        : `Acompte 40% - ${productName}${variantSuffix} (${portions} portions)`;
+
       const paymentResult = await apiFetch("/payments/sebpay/init", {
         method: "POST",
         body: JSON.stringify({
           order_id: orderResult.order_id,
           amount: orderResult.total_amount || finalTotal,
           phone: phone.trim(),
-          description: `Acompte 40% - ${productName}${variantSuffix} (${portions} portions)`,
+          description: paymentDescription,
         }),
       }, true);
 
@@ -344,23 +388,31 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
       tagClarityEvent('funnel_step', 'payment_initiated');
 
       if (paymentResult.payment_url) {
-        showAlert("Paiement requis 💳", `Veuillez payer l'acompte de ${paidDeposit} FCFA.`, [
-          { text: "Annuler", style: "cancel", onPress: onClose },
-          { text: "Payer maintenant", onPress: () => { Linking.openURL(paymentResult.payment_url); onConfirm(); } },
-        ]);
+        showAlert(
+          isEnglish ? "Payment required 💳" : "Paiement requis 💳",
+          isEnglish ? `Please pay the deposit of ${safeFormatNumber(paidDeposit)} FCFA.` : `Veuillez payer l'acompte de ${paidDeposit} FCFA.`,
+          [
+            { text: isEnglish ? "Cancel" : "Annuler", style: "cancel", onPress: onClose },
+            { text: isEnglish ? "Pay now" : "Payer maintenant", onPress: () => { Linking.openURL(paymentResult.payment_url); onConfirm(); } },
+          ]
+        );
       } else {
         showAlert(
-          "Validez le paiement 📱",
-          `${paymentResult.message || `Une demande de ${paidDeposit} FCFA a été envoyée sur votre téléphone.`}\n\n⚠️ Important : Votre solde Mobile Money doit être supérieur à ${paidDeposit} FCFA.\n\nValidez avec votre code PIN secret sur votre téléphone.`,
-          [{ text: "J'ai validé", onPress: () => { onConfirm(); onClose(); } }]
+          isEnglish ? "Confirm payment 📱" : "Validez le paiement 📱",
+          paymentResult.message || (isEnglish
+            ? `A payment prompt of ${safeFormatNumber(paidDeposit)} FCFA has been sent to your phone.\n\n⚠️ Important: Your Mobile Money balance must be higher than ${safeFormatNumber(paidDeposit)} FCFA.\n\nConfirm with your secret PIN on your phone.`
+            : `Une demande de ${paidDeposit} FCFA a été envoyée sur votre téléphone.\n\n⚠️ Important : Votre solde Mobile Money doit être supérieur à ${paidDeposit} FCFA.\n\nValidez avec votre code PIN secret sur votre téléphone.`),
+          [{ text: isEnglish ? "I confirmed" : "J'ai validé", onPress: () => { onConfirm(); onClose(); } }]
         );
       }
     } catch (error: any) {
       console.error("❌ Erreur:", error);
-      const errorMsg = error?.data?.detail || error?.message || "Une erreur est survenue.";
+      const errorMsg = error?.data?.detail || error?.message || (isEnglish ? "An error occurred." : "Une erreur est survenue.");
       showAlert(
-        "Information commande",
-        `${errorMsg}\n\n💡 Conseil : Assurez-vous que votre compte Orange Money ou MTN MoMo est actif et que votre solde est supérieur au montant de l'acompte.`
+        isEnglish ? "Order Information" : "Information commande",
+        isEnglish
+          ? `${errorMsg}\n\n💡 Tip: Make sure your Orange Money or MTN MoMo account is active and has sufficient balance.`
+          : `${errorMsg}\n\n💡 Conseil : Assurez-vous que votre compte Orange Money ou MTN MoMo est actif et que votre solde est supérieur au montant de l'acompte.`
       );
     } finally {
       setLoading(false);
@@ -377,11 +429,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
           <View style={styles.indicator} />
           {/* En-tête : Nom du plat & Prix d'appel */}
           <View style={styles.headerArea}>
-            <Text style={styles.title}>{productName || "Plat"}</Text>
+            <Text style={styles.title}>{productName || (isEnglish ? "Dish" : "Plat")}</Text>
             <Text style={styles.headerPriceSubtitle}>
-              {variantsList.length > 1 ? "À partir de " : ""}
+              {variantsList.length > 1 ? (isEnglish ? "Starting from " : "À partir de ") : ""}
               <Text style={styles.headerPriceHighlight}>{safeFormatNumber(pricePerUnit)} FCFA</Text>
-              {" / portion"}
+              {` / ${t.common.portion}`}
             </Text>
           </View>
 
@@ -389,7 +441,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             {/* 🍽️ CHOISISSEZ VOTRE PRÉPARATION (Cartes tactiles épurées - Uniquement si > 1 variante) */}
             {variantsList.length > 1 && (
               <View style={styles.variantSection}>
-                <Text style={styles.sectionHeading}>🍽️ Choisissez votre préparation :</Text>
+                <Text style={styles.sectionHeading}>{isEnglish ? "🍽️ Choose your preparation:" : "🍽️ Choisissez votre préparation :"}</Text>
                 <View style={styles.variantList}>
                   {variantsList.map((v: any) => {
                     const isSelected = selectedVariantId === v.id;
@@ -412,7 +464,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                             {emoji}{v.name}
                           </Text>
                           <Text style={[styles.variantCardPrice, isSelected && styles.variantCardPriceSelected]}>
-                            {safeFormatNumber(v.price)} FCFA / portion
+                            {safeFormatNumber(v.price)} FCFA / {t.common.portion}
                           </Text>
                         </View>
                         <View style={[styles.variantCheckBadge, isSelected && styles.variantCheckBadgeSelected]}>
@@ -430,7 +482,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             {/* ✅ Masque complètement le sélecteur de date si isCatalogueProduct === false */}
             {isCatalogueProduct ? (
               <View style={styles.dateSelectorContainer}>
-                <Text style={styles.label}>📅 Choisissez votre date de réservation :</Text>
+                <Text style={styles.label}>{isEnglish ? "📅 Choose your reservation date:" : "📅 Choisissez votre date de réservation :"}</Text>
                 {loadingOffers ? (
                   <ActivityIndicator size="small" color="#E31C25" style={{ marginVertical: 15 }} />
                 ) : (
@@ -443,7 +495,10 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                           key={dateOption.date}
                           onPress={() => {
                             if (!isOpen) {
-                              showAlert("Réservation non disponible", dateOption.status_message || "Les réservations pour cette date sont closes.");
+                              showAlert(
+                                isEnglish ? "Reservation unavailable" : "Réservation non disponible",
+                                dateOption.status_message || (isEnglish ? "Reservations for this date are closed." : "Les réservations pour cette date sont closes.")
+                              );
                               return;
                             }
                             setSelectedDateIndex(index);
@@ -463,7 +518,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                             {dateOption.label}
                           </Text>
                           {!isOpen && (
-                            <Text style={styles.closedTag}>Clôturé</Text>
+                            <Text style={styles.closedTag}>{isEnglish ? "Closed" : "Clôturé"}</Text>
                           )}
                         </TouchableOpacity>
                       );
@@ -476,15 +531,18 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </View>
             ) : lockedOfferDate ? (
               <View style={styles.lockedDateContainer}>
-                <Text style={styles.lockedDateText}>📅 Date fixe Menu du Jour : <Text style={{fontWeight: "900", color: "#E31C25"}}>{lockedOfferDate}</Text></Text>
+                <Text style={styles.lockedDateText}>
+                  {isEnglish ? "📅 Fixed Daily Special Date: " : "📅 Date fixe Menu du Jour : "}
+                  <Text style={{fontWeight: "900", color: "#E31C25"}}>{lockedOfferDate}</Text>
+                </Text>
               </View>
             ) : null}
 
             {/* 🔢 NOMBRE DE PORTIONS & RÉSUMÉ INSTANTANÉ */}
-            <Text style={styles.label}>{`🔢 Nombre de portions (${pricePerUnit} FCFA/portion) :`}</Text>
+            <Text style={styles.label}>{`🔢 ${t.orderModal.portionsCount} (${pricePerUnit} FCFA/${t.common.portion}) :`}</Text>
             {selectedVariant && (
               <Text style={styles.selectedVariantSummary}>
-                {`Sélection : `}<Text style={{ fontWeight: "800", color: "#E31C25" }}>{selectedVariant.name}</Text>{` · ${portions} portion${portions > 1 ? "s" : ""} = `}<Text style={{ fontWeight: "900", color: "#111827" }}>{safeFormatNumber(totalPrice)} FCFA</Text>
+                {`${isEnglish ? "Selection" : "Sélection"} : `}<Text style={{ fontWeight: "800", color: "#E31C25" }}>{selectedVariant.name}</Text>{` · ${portions} ${portions > 1 ? t.common.portions : t.common.portion} = `}<Text style={{ fontWeight: "900", color: "#111827" }}>{safeFormatNumber(totalPrice)} FCFA</Text>
               </Text>
             )}
             <View style={styles.counterContainer}>
@@ -497,7 +555,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>⏰ Heure de livraison :</Text>
+            <Text style={styles.label}>{isEnglish ? "⏰ Delivery time:" : "⏰ Heure de livraison :"}</Text>
             <View style={styles.timeRow}>
               {["12:00", "13:00", "18:00", "19:00"].map((time) => (
                 <TouchableOpacity key={time} onPress={() => setDeliveryTime(time)} style={[styles.timeChip, deliveryTime === time && styles.timeChipActive]}>
@@ -506,13 +564,15 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               ))}
             </View>
 
-            <Text style={styles.label}>📍 Votre quartier :</Text>
+            <Text style={styles.label}>{`📍 ${t.orderModal.deliveryZone} :`}</Text>
 
             {/* 🏷️ Suggestion rapide des quartiers configurés pour la ville active */}
             {availableCityZones.length > 0 && (
               <View style={styles.quickZonesContainer}>
                 <Text style={styles.quickZonesHint}>
-                  {`Quartiers desservis à ${activeCityName} (cliquez pour sélectionner) :`}
+                  {isEnglish
+                    ? `Served areas in ${activeCityName} (tap to select):`
+                    : `Quartiers desservis à ${activeCityName} (cliquez pour sélectionner) :`}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickZonesScroll}>
                   {availableCityZones.map((zoneName) => {
@@ -534,7 +594,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
             )}
 
             <TextInput 
-              placeholder={zonePlaceholder} 
+              placeholder={isEnglish ? "E.g.: Bastos, Akwa, Bonapriso..." : zonePlaceholder} 
               style={styles.input} 
               value={userZone} 
               onChangeText={setUserZone} 
@@ -542,21 +602,21 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
 
             <View style={styles.deliveryPriceInfo}>
               <Text style={styles.deliveryPriceText}>
-                {`🚚 Livraison : ${safeFormatNumber(deliveryPrice)} FCFA`}
+                {`🚚 ${t.orderModal.deliveryFee} : ${safeFormatNumber(deliveryPrice)} FCFA`}
                 {userZone.trim() ? (
                   deliveryPrice > baseDeliveryPrice 
-                    ? " ⚠️ (Hors-zone +500 F)" 
-                    : ` ✓ (Tarif standard ${activeCityName})`
+                    ? (isEnglish ? " ⚠️ (Out of zone +500 F)" : " ⚠️ (Hors-zone +500 F)") 
+                    : (isEnglish ? ` ✓ (Standard rate ${activeCityName})` : ` ✓ (Tarif standard ${activeCityName})`)
                 ) : ""}
               </Text>
             </View>
 
-            <Text style={styles.label}>🥘 Accompagnement <Text style={styles.requiredText}>*</Text> :</Text>
+            <Text style={styles.label}>🥘 {t.orderModal.sidesAndOptions} <Text style={styles.requiredText}>*</Text> :</Text>
             {optionsList.length > 0 ? (
               <View style={styles.wrapRow}>
                 {optionsList.map((opt: any) => {
                   const isSelected = selectedOptionId === opt.id;
-                  const priceLabel = Number(opt.price || 0) > 0 ? `+${safeFormatNumber(opt.price)} F` : "Inclus";
+                  const priceLabel = Number(opt.price || 0) > 0 ? `+${safeFormatNumber(opt.price)} F` : (isEnglish ? "Included" : "Inclus");
                   return (
                     <TouchableOpacity
                       key={opt.id}
@@ -585,7 +645,7 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                 })}
               </View>
             )}
-            {optionsList.length === 0 && !complement && <Text style={styles.errorHint}>⚠️ Veuillez choisir un accompagnement.</Text>}
+            {optionsList.length === 0 && !complement && <Text style={styles.errorHint}>{isEnglish ? "⚠️ Please select a side dish." : "⚠️ Veuillez choisir un accompagnement."}</Text>}
 
             {/* 📝 PRÉFÉRENCE DE CUISINE (FACULTATIVE & DISCRÈTE) */}
             <View style={styles.customizationSection}>
@@ -595,14 +655,16 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                 activeOpacity={0.7}
               >
                 <Text style={styles.customizationToggleText}>
-                  {showCustomization ? "▼ 📝 Une préférence pour la cuisine ? (facultatif)" : "▶ 📝 Une préférence pour la cuisine ? (facultatif)"}
+                  {showCustomization 
+                    ? (isEnglish ? "▼ 📝 Cooking preferences? (optional)" : "▼ 📝 Une préférence pour la cuisine ? (facultatif)")
+                    : (isEnglish ? "▶ 📝 Cooking preferences? (optional)" : "▶ 📝 Une préférence pour la cuisine ? (facultatif)")}
                 </Text>
               </TouchableOpacity>
 
               {showCustomization && (
                 <View style={styles.customizationBox}>
                   <TextInput
-                    placeholder="Ex: sans cube, peu salé, peu d'huile..."
+                    placeholder={isEnglish ? "E.g.: no MSG, low salt, light oil..." : "Ex: sans cube, peu salé, peu d'huile..."}
                     placeholderTextColor="#94a3b8"
                     style={styles.customizationInput}
                     value={customizationNote}
@@ -612,10 +674,10 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
                     numberOfLines={2}
                   />
                   <View style={styles.charCounterRow}>
-                    <Text style={styles.charCounterText}>{customizationNote.length}/300 caractères</Text>
+                    <Text style={styles.charCounterText}>{customizationNote.length}/300 {isEnglish ? "characters" : "caractères"}</Text>
                     {customizationNote.trim().length > 0 && (
                       <TouchableOpacity onPress={() => setCustomizationNote("")}>
-                        <Text style={styles.clearNoteText}>Effacer</Text>
+                        <Text style={styles.clearNoteText}>{isEnglish ? "Clear" : "Effacer"}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -623,42 +685,44 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               )}
             </View>
 
-            <Text style={styles.label}>📱 Numéro Mobile Money (Orange ou MTN) :</Text>
+            <Text style={styles.label}>📱 {t.orderModal.phoneLabel} :</Text>
             <TextInput placeholder="Ex: 697000000 ou 670000000" style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-            <Text style={styles.phoneHint}>Ce numéro recevra la demande de débit Mobile Money.</Text>
+            <Text style={styles.phoneHint}>
+              {isEnglish ? "This number will receive the Mobile Money payment prompt." : "Ce numéro recevra la demande de débit Mobile Money."}
+            </Text>
 
             <View style={styles.priceContainer}>
               <View style={styles.priceLine}>
                 <Text style={styles.priceLabel}>
                   {selectedVariant
-                    ? `Repas — ${selectedVariant.name} (${portions} portion${portions > 1 ? "s" : ""})`
-                    : `Repas (${portions} portion${portions > 1 ? "s" : ""})`}
+                    ? `${isEnglish ? "Meal" : "Repas"} — ${selectedVariant.name} (${portions} ${portions > 1 ? t.common.portions : t.common.portion})`
+                    : `${isEnglish ? "Meal" : "Repas"} (${portions} ${portions > 1 ? t.common.portions : t.common.portion})`}
                 </Text>
                 <Text style={styles.priceValue}>{`${pricePerUnit * portions} FCFA`}</Text>
               </View>
               {optionUnitFee > 0 && selectedOption && (
                 <View style={styles.priceLine}>
                   <Text style={styles.priceLabel}>
-                    {`Accompagnement — ${selectedOption.name} (${portions} portion${portions > 1 ? "s" : ""})`}
+                    {`${isEnglish ? "Side dish" : "Accompagnement"} — ${selectedOption.name} (${portions} ${portions > 1 ? t.common.portions : t.common.portion})`}
                   </Text>
                   <Text style={styles.priceValue}>{`+${safeFormatNumber(optionUnitFee * portions)} FCFA`}</Text>
                 </View>
               )}
-              <View style={styles.priceLine}><Text style={styles.priceLabel}>Livraison</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
+              <View style={styles.priceLine}><Text style={styles.priceLabel}>{t.orderModal.deliveryFee}</Text><Text style={styles.priceValue}>{`${deliveryPrice} FCFA`}</Text></View>
               {customizationNote.trim().length > 0 && (
                 <View style={styles.recapCustomizationLine}>
-                  <Text style={styles.recapCustomizationLabel}>✨ Préférence :</Text>
+                  <Text style={styles.recapCustomizationLabel}>{isEnglish ? "✨ Preference:" : "✨ Préférence :"}</Text>
                   <Text style={styles.recapCustomizationValue} numberOfLines={2}>« {customizationNote.trim()} »</Text>
                 </View>
               )}
-              <View style={styles.totalLine}><Text style={styles.totalLabel}>TOTAL</Text><Text style={styles.totalValue}>{`${finalTotal} FCFA`}</Text></View>
+              <View style={styles.totalLine}><Text style={styles.totalLabel}>{t.orderModal.totalAmount}</Text><Text style={styles.totalValue}>{`${finalTotal} FCFA`}</Text></View>
               <View style={styles.depositBox}>
-                <Text style={styles.depositText}>ACOMPTE 40% À PAYER</Text>
+                <Text style={styles.depositText}>{isEnglish ? "40% DEPOSIT DUE" : "ACOMPTE 40% À PAYER"}</Text>
                 <Text style={styles.depositAmount}>{`${deposit} FCFA`}</Text>
-                <Text style={styles.remainingText}>{`Solde à la livraison : ${finalTotal - deposit} FCFA`}</Text>
+                <Text style={styles.remainingText}>{`${isEnglish ? "Balance on delivery:" : "Solde à la livraison :"} ${finalTotal - deposit} FCFA`}</Text>
                 <View style={styles.balanceNotice}>
                   <Text style={styles.balanceNoticeText}>
-                    {`⚠️ Solde requis : Votre compte Orange Money ou MTN MoMo doit avoir au moins ${safeFormatNumber(deposit)} FCFA pour valider ce paiement.`}
+                    {`⚠️ ${isEnglish ? `Required balance: Your Orange Money or MTN MoMo account must have at least ${safeFormatNumber(deposit)} FCFA to validate this payment.` : `Solde requis : Votre compte Orange Money ou MTN MoMo doit avoir au moins ${safeFormatNumber(deposit)} FCFA pour valider ce paiement.`}`}
                   </Text>
                 </View>
               </View>
@@ -669,11 +733,11 @@ const OrderModal = ({ visible, onClose, item, onConfirm }: any) => {
               onPress={handleValidation}
               disabled={loading}
             >
-              <Text style={styles.payButtonText}>{loading ? "Traitement..." : `🔥 RÉSERVER (${safeFormatNumber(deposit)} F)`}</Text>
+              <Text style={styles.payButtonText}>{loading ? (isEnglish ? "Processing..." : "Traitement...") : `🔥 ${isEnglish ? "RESERVE" : "RÉSERVER"} (${safeFormatNumber(deposit)} F)`}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={onClose} style={styles.cancelButton}>
-              <Text style={styles.cancelButtonText}>Fermer</Text>
+              <Text style={styles.cancelButtonText}>{t.common.close}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

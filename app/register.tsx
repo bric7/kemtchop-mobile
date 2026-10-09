@@ -21,8 +21,11 @@ import {
 // ✅ AJOUTE CETTE LIGNE ICI :
 import { apiFetch } from "../config/api";
 import NotificationService from "@/services/notifications";
+import { useTranslation } from "@/i18n/LanguageContext";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function RegisterScreen() {
+  const { t, isEnglish } = useTranslation();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -39,17 +42,17 @@ export default function RegisterScreen() {
     const trimmedPhone = phone.trim();
 
     if (!trimmedName || !trimmedPhone || !password || !confirmPassword) {
-      setErrorMessage("Veuillez remplir tous les champs.");
+      setErrorMessage(isEnglish ? "Please fill in all fields." : "Veuillez remplir tous les champs.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage("Les mots de passe ne correspondent pas.");
+      setErrorMessage(isEnglish ? "Passwords do not match." : "Les mots de passe ne correspondent pas.");
       return;
     }
 
     if (password.length < 6) {
-      setErrorMessage("Le mot de passe doit faire au moins 6 caractères.");
+      setErrorMessage(isEnglish ? "Password must be at least 6 characters." : "Le mot de passe doit faire au moins 6 caractères.");
       return;
     }
 
@@ -89,14 +92,16 @@ export default function RegisterScreen() {
         if (Platform.OS === "web") {
           router.replace("/(tabs)");
         } else {
-          Alert.alert("Bienvenue ! 🎉", "Ton compte Kemtchop est prêt.", [
-            { text: "C'est parti !", onPress: () => router.replace("/(tabs)") },
-          ]);
+          Alert.alert(
+            isEnglish ? "Welcome! 🎉" : "Bienvenue ! 🎉",
+            isEnglish ? "Your Kemtchop account is ready." : "Ton compte Kemtchop est prêt.",
+            [{ text: isEnglish ? "Let's go!" : "C'est parti !", onPress: () => router.replace("/(tabs)") }]
+          );
         }
       }
     } catch (error: any) {
       console.error("❌ Erreur inscription:", error);
-      setErrorMessage(error.message || "Inscription échouée. Veuillez réessayer.");
+      setErrorMessage(error.message || (isEnglish ? "Registration failed. Please try again." : "Inscription échouée. Veuillez réessayer."));
     } finally {
       setLoading(false);
     }
@@ -113,19 +118,23 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ width: "100%", alignItems: "center" }}>
+            <View style={{ alignSelf: "flex-end", marginBottom: 16 }}>
+              <LanguageSelector variant="compact" />
+            </View>
+
             <Image
               source={require("../assets/images/icon.png")}
               style={{ width: 84, height: 84, borderRadius: 20, marginBottom: 16 }}
               resizeMode="cover"
             />
-            <Text style={styles.title}>Rejoindre KEMTCHOP</Text>
+            <Text style={styles.title}>{isEnglish ? "Join KEMTCHOP" : "Rejoindre KEMTCHOP"}</Text>
             <Text style={styles.subtitle}>
-              Crée ton compte pour commander tes grillades
+              {t.auth.registerSubtitle}
             </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Nom complet"
+              placeholder={t.auth.nameLabel}
               value={name}
               onChangeText={(text) => {
                 setName(text);
@@ -136,7 +145,7 @@ export default function RegisterScreen() {
 
             <TextInput
               style={styles.input}
-              placeholder="Numéro de téléphone"
+              placeholder={t.auth.phoneLabel}
               keyboardType="phone-pad"
               value={phone}
               onChangeText={(text) => {
@@ -149,7 +158,7 @@ export default function RegisterScreen() {
             <View style={styles.passwordWrapper}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Mot de passe"
+                placeholder={t.auth.passwordLabel}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={(text) => {
@@ -172,7 +181,7 @@ export default function RegisterScreen() {
             {/* Confirmation du mot de passe */}
             <TextInput
               style={styles.input}
-              placeholder="Confirmer le mot de passe"
+              placeholder={isEnglish ? "Confirm password" : "Confirmer le mot de passe"}
               secureTextEntry={!showPassword}
               value={confirmPassword}
               onChangeText={(text) => {
@@ -196,7 +205,7 @@ export default function RegisterScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>S'INSCRIRE</Text>
+                <Text style={styles.buttonText}>{t.auth.registerBtn.toUpperCase()}</Text>
               )}
             </TouchableOpacity>
 
@@ -205,7 +214,7 @@ export default function RegisterScreen() {
               style={{ marginTop: 20 }}
             >
               <Text style={{ color: "#666", textAlign: "center" }}>
-                Retour au login
+                {isEnglish ? "Back to login" : "Retour au login"}
               </Text>
             </TouchableOpacity>
           </View>

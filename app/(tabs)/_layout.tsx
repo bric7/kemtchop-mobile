@@ -1,8 +1,11 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
+import { useTranslation } from "@/i18n/LanguageContext";
 
 export default function TabLayout() {
+  const { t } = useTranslation();
+
   return (
     <Tabs
       screenOptions={{
@@ -27,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Accueil",
+          title: t("nav.home"),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "home" : "home-outline"}
@@ -42,7 +45,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Commandes",
+          title: t("nav.orders"),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "receipt" : "receipt-outline"}
@@ -57,7 +60,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: "Conseils",
+          title: t("nav.chat"),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={
@@ -74,7 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: t("nav.profile"),
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "account" : "account-outline"}
