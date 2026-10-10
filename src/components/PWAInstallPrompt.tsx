@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, Image } from 'react-native';
-import { Download, X, Share, PlusSquare, Smartphone, MoreVertical, CheckCircle2, Sparkles, RefreshCw, Trash2 } from 'lucide-react-native';
+import { Download, X, Share, PlusSquare, Smartphone, MoreVertical, CheckCircle2, Sparkles, RefreshCw, Trash2, Globe } from 'lucide-react-native';
 
 const CURRENT_PWA_VERSION = 2;
 const KEY_INSTALLED_VERSION = 'kemtchop_pwa_version';
@@ -10,6 +10,7 @@ const KEY_UPDATE_DISMISSED = 'kemtchop_pwa_update_dismissed_v2';
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [isInApp, setIsInApp] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [alreadyInstalled, setAlreadyInstalled] = useState(false);
   const [needsIconUpdate, setNeedsIconUpdate] = useState(false);
@@ -17,6 +18,7 @@ export default function PWAInstallPrompt() {
   const [installBannerVisible, setInstallBannerVisible] = useState(false);
   const [updateBannerVisible, setUpdateBannerVisible] = useState(false);
   const [iosModalVisible, setIosModalVisible] = useState(false);
+  const [inAppModalVisible, setInAppModalVisible] = useState(false);
   const [fallbackModalVisible, setFallbackModalVisible] = useState(false);
   const [updateHelpModalVisible, setUpdateHelpModalVisible] = useState(false);
 
@@ -31,18 +33,37 @@ export default function PWAInstallPrompt() {
 
     setIsStandalone(standaloneMode);
 
-    // 2. Détecter iOS
+    // 2. Détecter iOS et In-App Browsers (WhatsApp, Facebook, Instagram, etc.)
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIosDevice);
+
+    const isInAppBrowser = /fban|fbav|instagram|whatsapp|micromessenger|snapchat|tiktok/i.test(userAgent);
+    setIsInApp(isInAppBrowser);
 
     // 3. Lire la version enregistrée dans le stockage local
     const storedVersion = Number(localStorage.getItem(KEY_INSTALLED_VERSION) || 0);
 
     // 4. Détecter si l'application est déjà installée sur l'appareil (Chrome getInstalledRelatedApps)
     const checkInstalledApps = async () => {
-      let isInstalledOnDevice = standaloneMode || storedVersion >= CURRENT_PWA_VERSION;
+      // CAS A : L'utilisateur navigue DÉJÀ dans l'application installée (mode autonome)
+      if (standaloneMode) {
+        setAlreadyInstalled(true);
+        if (storedVersion < CURRENT_PWA_VERSION) {
+          const updateDismissed = sessionStorage.getItem(KEY_UPDATE_DISMISSED);
+          if (!updateDismissed) {
+            setNeedsIconUpdate(true);
+            setUpdateBannerVisible(true);
+          }
+        } else {
+          localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
+        }
+        return;
+      }
 
+      // CAS B : Visite depuis un onglet web ordinaire
+      // Ne bloquer que si l'API native de Chrome confirme formellement l'installation
+      let isInstalledOnDevice = false;
       if ('getInstalledRelatedApps' in navigator) {
         try {
           const relatedApps = await (navigator as any).getInstalledRelatedApps();
@@ -56,36 +77,18 @@ export default function PWAInstallPrompt() {
 
       setAlreadyInstalled(isInstalledOnDevice);
 
-      // CAS A : L'utilisateur est en standalone mais possède une ancienne version (< 2)
-      if (standaloneMode && storedVersion < CURRENT_PWA_VERSION) {
-        const updateDismissed = sessionStorage.getItem(KEY_UPDATE_DISMISSED);
-        if (!updateDismissed) {
-          setNeedsIconUpdate(true);
-          setUpdateBannerVisible(true);
-        }
-        return;
-      }
-
-      // CAS B : L'utilisateur est DÉJÀ à jour en standalone -> ZÉRO BANNIÈRE
-      if (standaloneMode) {
-        // Enregistrer la version courante
-        localStorage.setItem(KEY_INSTALLED_VERSION, String(CURRENT_PWA_VERSION));
-        return;
-      }
-
-      // CAS C : Visite depuis un onglet web ordinaire
-      // Si l'application est déjà installée sur l'appareil -> NE PAS afficher "Installer"
+      // Si l'application est déjà confirmée comme installée sur l'appareil -> NE PAS afficher
       if (isInstalledOnDevice) {
         return;
       }
 
-      // Sinon (vraiment pas installée) : vérifier si dismissé dans cette session
+      // Sinon : vérifier si dismissé dans cette session
       const sessionDismissed = sessionStorage.getItem(KEY_BANNER_DISMISSED);
       if (!sessionDismissed) {
-        // Laisser 1.5s pour que le client profite du premier rendu
+        // Laisser 1.2s pour que le client profite du premier rendu
         setTimeout(() => {
           setInstallBannerVisible(true);
-        }, 1500);
+        }, 1200);
       }
     };
 
@@ -129,6 +132,12 @@ export default function PWAInstallPrompt() {
 
   // Déclenchement de l'installation
   const handleInstallClick = async () => {
+    // Si l'utilisateur est dans le navigateur interne de WhatsApp / Facebook
+    if (isInApp) {
+      setInAppModalVisible(true);
+      return;
+    }
+
     if (isIOS) {
       setIosModalVisible(true);
       return;
@@ -367,6 +376,72 @@ export default function PWAInstallPrompt() {
                 setIosModalVisible(false);
                 handleDismissInstall();
               }}
+            >
+              <Text style={styles.modalCloseButtonText}>J'ai compris</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 💬 Modal d'instructions pour WhatsApp & In-App Browser */}
+      <Modal
+        visible={inAppModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setInAppModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🌐 Ouvrir dans votre navigateur</Text>
+              <TouchableOpacity onPress={() => setInAppModalVisible(false)}>
+                <X size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalInstructionIntro}>
+              Vous êtes actuellement dans le navigateur interne de WhatsApp / réseaux sociaux. Pour installer l'application :
+            </Text>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <MoreVertical size={20} color="#E31C25" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 1</Text>
+                <Text style={styles.stepText}>
+                  Touchez le menu <Text style={styles.boldText}>⋮ (3 points)</Text> ou l'icône de partage en haut à droite.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <Globe size={20} color="#10B981" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 2</Text>
+                <Text style={styles.stepText}>
+                  Appuyez sur <Text style={styles.boldText}>« Ouvrir dans Chrome »</Text> (ou Safari sur iPhone).
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stepItem}>
+              <View style={styles.stepIcon}>
+                <Download size={20} color="#E31C25" />
+              </View>
+              <View style={styles.stepTextWrapper}>
+                <Text style={styles.stepNumber}>Étape 3</Text>
+                <Text style={styles.stepText}>
+                  Une fois dans le navigateur, vous pourrez installer l'application en 1 clic !
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setInAppModalVisible(false)}
             >
               <Text style={styles.modalCloseButtonText}>J'ai compris</Text>
             </TouchableOpacity>
